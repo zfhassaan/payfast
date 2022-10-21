@@ -1,0 +1,21 @@
+{
+    "name": "zfhassaan/payfast",
+    "description": "Laravel 9 Package for Payfast Payment Gateway",
+    "type": "library",
+    "require": {
+        "php": "^8.0.2"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "zfhassaan\\Payfast\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Hassaan Ali",
+            "email": "zfhassaan@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable"
+}
