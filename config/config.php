@@ -2,6 +2,7 @@
 
 return [
     'api_url'    => env('PAYFAST_API_URL', ''),
+    'sandbox_api_url'=>env('PAYFAST_SANDBOX_URL',''),
     'grant_type' => env('PAYFAST_GRANT_TYPE', ''),
     'merchant_id'=> env('PAYFAST_MERCHANT_ID', ''),
     'secured_key'=> env('PAYFAST_SECURED_KEY', ''),

@@ -3,8 +3,9 @@
 namespace zfhassaan\Payfast;
 
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 
-class Payfast {
+class PayFast {
 
     protected $apiUrl;
     public $merchant_id;
@@ -51,7 +52,7 @@ class Payfast {
      */
     public function initConfig()
     {
-        $this->setApiUrl(config('payfast.api_url'));
+        config('payfast.mode') === 'sandbox' ? $this->setApiUrl(config('payfast.sandbox_api_url')) : $this->setApiUrl(config('payfast.api_url'));   
         $this->merchant_id = config('payfast.merchant_id');
         $this->store_id = config('payfast.store_id');
         $this->api_mode = config('payfast.mode');
@@ -78,9 +79,7 @@ class Payfast {
 
         $field_string = http_build_query($fields);
 
-        // Open Connection
         $ch = curl_init();
-        // Set the url, number of POST vars, POST Data
         curl_setopt($ch, CURLOPT_URL, $this->getApiUrl().'token');
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $field_string);
@@ -101,6 +100,8 @@ class Payfast {
      * original token.
      * 
      * Request URL: /refreshtoken
+     * 
+     * @return hash key
      */
     public function refreshToken(){
         $fields = [
@@ -138,9 +139,50 @@ class Payfast {
     /**
      * This API will be used if you choose to send OTP to registered mobile number of the customer 
      * that respective Issuer/Bank.
+     * @return JsonResponse
      */
     public function customer_validate($data){
         // Data Received on Post Request for OTP Screen
+        $data['order_date'] = Carbon::today()->toDateString();
+        $data['account_type_id'] = 1;
+        $field_string = http_build_query($data);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+        CURLOPT_URL => $this->getApiUrl().'customer/validate',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $field_string,
+        CURLOPT_HTTPHEADER => array(
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.$this->getAuthToken()
+        ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+        return response()->json(['response' => json_decode($response), 'token'=>$this->getAuthToken()]);
+    }
+
+
+
+    /**
+     * Mobile Wallet Transaction
+     *
+     * @param [type] $data
+     * @return void
+     */
+    public function wallet($data){
+        // Data Received on Post Request for OTP Screen
+        $data['order_date'] = Carbon::today()->toDateString();
+        $data['bank_code'] = 13; // Change it according to your own Bank i.e. Easy Paisa / Jazz Cash / UPaisa
+        $data['account_type_id'] = 4;
+
         $field_string = http_build_query($data);
         $curl = curl_init();
         curl_setopt_array($curl, array(
@@ -161,8 +203,13 @@ class Payfast {
 
         $response = curl_exec($curl);
         curl_close($curl);
-        return response()->json(['response' => json_decode($response), 'token'=>$this->getAuthToken()]);
-    }
+        if(json_decode($response)->code == "00"){
+            $data['token'] = $this->getAuthToken();
+            $data['transaction_id'] = json_decode($response)->transaction_id;
+            return $this->wallet_transaction($data);
+        }
+        return $response;
+    }    
 
     /**
      * Initiate Transaction 
@@ -195,26 +242,36 @@ class Payfast {
      * Mobile Wallet Initiate Transaction
      */
     public function wallet_transaction($data) {
-        $res = [
-            'basket_id' => $data['basket_id'],
-            'txnamt' => $data['txnamt'],
-            'customer_email_address' => $data['customer_email_address'],
-            'account_type_id' => 4,
-            'customer_mobile_no' => $data['customer_mobile_no'],
-            'account_number' => $data['account_number'],
-            'bank_code' => $data['bank_code'],
-            'transaction_id' => $this->getTransactionId(),
-            'order_date' => Carbon::today()->toDateString(),
-        ];
+        // dd($data);
+        $field_string = http_build_query($data);
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+        CURLOPT_URL => $this->getApiUrl().'transaction',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $field_string,
+        CURLOPT_HTTPHEADER => array(
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.$this->getAuthToken()
+        ),
+        ));
 
-        return $this->__initiate_transaction($res);
+        $response = curl_exec($curl);
+        curl_close($curl);
+
+        return $response;
     }
     /**
      * Initiate Transaction Extracted 
      * 
      */
     public function __initiate_transaction($data) {
-
+        // dd($data);
         $field_string = http_build_query($data);
 
         $curl = curl_init();
