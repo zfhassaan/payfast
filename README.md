@@ -3,12 +3,8 @@
   <!-- <h3 align="center">Payfast</h3> -->
 </p>
 
-<p align="center">
-<a href="https://packagist.org/packages/zfhassaan/payfast"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/zfhassaan/payfast"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/zfhassaan/payfast"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
-
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/zfhassaan/Payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
+[![Total Downloads](https://img.shields.io/packagist/dt/zfhassaan/Payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 
 <h4> Disclaimer </h4>
 This is unofficial Payfast API Payment Gateway. Payfast is not responsible for anything that happens on your website / Application. This repository  is only created to help developers in streamlining the integration process. You can Review the Official Payment Gateway <a href="https://gopayfast.com/docs/#preface" >here.</a> 
