@@ -1,0 +1,19 @@
+# .github/release.yml
+
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - zfhassaan
+  categories:
+    - title: Breaking Changes 🛠
+      labels:
+        - APIs Enhancement
+        - Code Refactored
+    - title: Latest Release 🎉
+      labels:
+        - enhancement
+    - title: Other Changes
+      labels:
+        - "*"
