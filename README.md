@@ -7,7 +7,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/zfhassaan/Payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 
 <h4> Disclaimer </h4>
-This is unofficial Payfast API Payment Gateway. Payfast is not responsible for anything that happens on your website / Application. This repository  is only created to help developers in streamlining the integration process. You can Review the Official Payment Gateway <a href="https://gopayfast.com/docs/#preface" >here.</a> 
+This is unofficial Payfast API Payment Gateway. This repository  is only created to help developers in streamlining the integration process. You can Review the Official Payment Gateway <a href="https://gopayfast.com/docs/#preface" >here.</a> 
 
 This Package only covers direct checkout and hosted checkout process. There's no Subscription option enabled yet it'll be added in the next build.
 
