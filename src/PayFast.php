@@ -14,6 +14,7 @@ class PayFast {
     public $handshake;
     public $refreshToken;
     public $customer_validation;
+    public $api_mode;
 
     protected $basket_id;
     protected $txnamt;
@@ -52,10 +53,10 @@ class PayFast {
      */
     public function initConfig()
     {
-        config('payfast.mode') === 'sandbox' ? $this->setApiUrl(config('payfast.sandbox_api_url')) : $this->setApiUrl(config('payfast.api_url'));   
+        $this->api_mode = config('payfast.mode');
+        $this->api_mode === 'sandbox' ? $this->setApiUrl(config('payfast.sandbox_api_url')) : $this->setApiUrl(config('payfast.api_url'));   
         $this->merchant_id = config('payfast.merchant_id');
         $this->store_id = config('payfast.store_id');
-        $this->api_mode = config('payfast.mode');
         $this->return_url = config('payfast.return_url');
         $this->secured_key = config('payfast.secured_key');
         $this->grant_type = config('payfast.grant_type');
