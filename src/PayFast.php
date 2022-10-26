@@ -15,6 +15,7 @@ class PayFast {
     public $refreshToken;
     public $customer_validation;
     public $api_mode;
+    public $return_url;
 
     protected $basket_id;
     protected $txnamt;
