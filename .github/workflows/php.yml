@@ -28,15 +28,9 @@ jobs:
         key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
-    
-    - name: Creating a laravel project with composer
-      run:  composer create-project laravel/laravel payfast
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
-
-    - name: Requiring Payfast module 
-      run: composer require zfhassaan/payfast
 
     # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
     # Docs: https://getcomposer.org/doc/articles/scripts.md
