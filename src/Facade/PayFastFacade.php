@@ -1,6 +1,6 @@
-<?php 
+<?php
 
-namespace zfhassaan\Payfast;
+namespace zfhassaan\Payfast\Facade;
 
 use Illuminate\Support\Facades\Facade;
 
@@ -12,6 +12,6 @@ class PayFastFacade extends Facade
      */
     protected static function getFacadeAccessor(): string
     {
-        return 'payfast';        
+        return 'payfast';
     }
 }

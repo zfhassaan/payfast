@@ -20,10 +20,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "zfhassaan\\Payfast\\PayFastServiceProvider"
+                "zfhassaan\\Payfast\\Provider\\PayFastServiceProvider"
             ],
             "aliases": {
-                "payfast": "zfhassaan\\Payfast\\PayfastFacade"
+                "payfast": "zfhassaan\\Payfast\\Facade\\PayfastFacade"
             }
         }
     },
