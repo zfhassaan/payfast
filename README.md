@@ -4,6 +4,7 @@
 </p>
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/zfhassaan/Payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
+[![MIT Licensed](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![Total Downloads](https://img.shields.io/packagist/dt/zfhassaan/Payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 
 <h4> Disclaimer </h4>
