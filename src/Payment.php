@@ -13,6 +13,7 @@ class Payment {
     public $customer_validation;
     public $api_mode;
     public $return_url;
+    public $auth_token;
 
     protected $basket_id;
     protected $txnamt;
