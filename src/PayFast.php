@@ -1,225 +1,284 @@
-<?php 
+<?php
 
 namespace zfhassaan\Payfast;
 
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use zfhassaan\Payfast\Payment;
+use zfhassaan\Payfast\helper\Utility;
+use Illuminate\Support\Facades\Validator;
 
-class PayFast {
-
-    protected $apiUrl;
-    public $merchant_id;
-    public $secured_key;
-    public $grant_type;
-    public $handshake;
-    public $refreshToken;
-    public $customer_validation;
-
-    protected $auth_token;
-    protected $basket_id;
-    protected $txnamt;
-    protected $customer_mobile_no;
-    protected $customer_email_address;
-    protected $account_type_id;
-    protected $card_number;
-    protected $expiry_month;
-    protected $expiry_year;
-    protected $cvv;
-    protected $order_date;
-    protected $data_3ds_callback_url;
-    protected $store_id;
-    protected $currency_code;
-    protected $account_title;
-    protected $transaction_id;
-    protected $data_3ds_secureId;
-    protected $data_3ds_pares;
-    protected $paRes;
-
-    protected $api_mode;
-    protected $return_url;
-    private $_doTranUrl;
-    private $_proTranUrl;
+/**
+ * This section contains the details of all APIs provided by PAYFAST. The merchants, acquirers and/or
+ * aggregators could call these APIs. These API\’S are based on REST architecture and serve standard HTTP
+ * codes for the response payload.
+ * @method getip()
+ */
+class PayFast extends Payment
+{
 
     /**
-     * Constructor for Payfast
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->initConfig();
-    }
-
-    /**
-     * Initialize Config Values
-     * @return void
-     */
-    public function initConfig()
-    {
-        config('payfast.mode') === 'sandbox' ? $this->setApiUrl(config('payfast.sandbox_api_url')) : $this->setApiUrl(config('payfast.api_url'));   
-        $this->merchant_id = config('payfast.merchant_id');
-        $this->store_id = config('payfast.store_id');
-        $this->api_mode = config('payfast.mode');
-        $this->return_url = config('payfast.return_url');
-        $this->secured_key = config('payfast.secured_key');
-        $this->grant_type = config('payfast.grant_type');
-
-        $this->getToken();
-    }
-
-    /**
-     * Following function will provide you the Authentication token, which will be used to call
-     * APIs. Merchant_id and Secured_key is mandatory to get the access token. This token
-     * will be sent on all the APIs with standard HTTP header ‘Authorization’.
-     * 
+     * Authentication Access Token:
+     * Following API will provide you the Authentication token, which will be used to call APIs. Merchant_id
+     * and Secured_key is mandatory to get the access token. This token will be sent on all the APIs with
+     * standard HTTP header ‘Authorization’.
+     *
      * Request Url: /token
-     * 
-     * @return hash key
-     */
-    public function getToken() {
-        $fields = [
-            "grant_type" => $this->grant_type,
-            "merchant_id" => $this->merchant_id,
-            "secured_key" => $this->secured_key
-        ];
-
-        $field_string = http_build_query($fields);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->getApiUrl().'token');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $field_string);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        $this->handshake = json_decode($result);
-        if($this->handshake != null && $this->handshake->token != null){
-            $AuthToken = $this->handshake->token;
-            $this->setAuthToken($AuthToken);
-        } else {
-            $this->setAuthToken(false);
-        }
-        return $this->handshake;
-    }
-
-    /**
-     * Any access token can be refreshed upon expiry. A refresh token is given along with
-     * original token.
-     * 
-     * Request URL: /refreshtoken
-     * 
-     * @return hash key
-     */
-    public function refreshToken(){
-        $fields = [
-            "grant_type" => 'refresh_token',
-            "refresh_token" => $this->handshake->refresh_token
-        ];
-        $field_string = http_build_query($fields);
-
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $this->getApiUrl().'refreshtoken',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $field_string,
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/x-www-form-urlencoded',
-            'Authorization: Bearer '.$this->handshake->token,
-        ),
-        ));
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        $refresh_token = json_decode($response);
-        $this->setRefreshToken($refresh_token->token);
-        return $this->getRefreshToken();
-    }
-
-    /**
-     * This API will be used if you choose to send OTP to registered mobile number of the customer 
-     * that respective Issuer/Bank.
+     * Request Method: POST
+     *
      * @return JsonResponse
      */
-    public function customer_validate($data){
+    public function GetToken(): JsonResponse
+    {
+        try{
+            $options = [
+                "grant_type" => $this->grant_type,
+                "merchant_id" => $this->merchant_id,
+                "secured_key" => $this->secured_key,
+                "customer_ip" => $this->getip()
+            ];
 
+            $result = $this->getPayfastToken(http_build_query($options));
 
-        $data['order_date'] = Carbon::today()->toDateString();
-        $data['account_type_id'] = 1;
-        $field_string = http_build_query($data);
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $this->getApiUrl().'customer/validate',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $field_string,
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/x-www-form-urlencoded',
-            'Authorization: Bearer '.$this->getAuthToken()
-        ),
-        ));
+            if($result->code == '00') {
+                $this->setAuthToken(($handshake = $this->getHandShake()) ? $handshake->token : false);
+                return Utility::returnSuccess(($result),'00'.$result->code);
+            }
+            return Utility::returnError($result);
+        } catch(\Exception $e)
+        {
+            return Utility::returnError($e->getMessage());
+        }
+    }
 
-        $response = curl_exec($curl);
+    /**
+     * Any access token can be refreshed upon expiry. A refresh token is given along with original token.
+     * The RefreshToken can be used with the Token received from Payfast::GetToken().
+     * The result returns token with a refresh token, that can be passed to the Payfast::RefreshToken() to renew
+     * the token from payfast.
+     *
+     * curl -X POST \
+     * <BASE_URL>/refreshtoken \
+     * -H 'cache-control: no-cache' \
+     * -H 'content-type: application/x-www-form-urlencoded'
+     *
+     * @param string $token
+     * @param String $refresh_token
+     * @return null|JsonResponse
+     */
+    public function RefreshToken(String $token,String $refresh_token): JsonResponse|null
+    {
 
-        curl_close($curl);
-        return response()->json(['response' => json_decode($response), 'token'=>$this->getAuthToken()]);
+        $this->setAuthToken($token);
+        $this->setRefreshToken($refresh_token);
+
+        $postFields = http_build_query([
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refresh_token
+        ]);
+
+        $response = json_decode($this->PayfastPost('refreshtoken',$postFields));
+
+        return $response->code != '00' ? Utility::returnError($response, $response->code, ResponseAlias::HTTP_BAD_REQUEST) : Utility::returnSuccess($response,'00'.$response->code);
+    }
+
+    /**
+     * This API will be used if you choose to send OTP to registered mobile number of the customer
+     * that respective Issuer/Bank. This API will be used if you choose to send OTP to registered mobile number of the
+     * customer with that respective Issuer/Bank.
+     *
+     * @param $data
+     * @return JsonResponse
+     */
+    public function GetOTPScreen($data): JsonResponse
+    {
+        $validator = Validator::make($data, [
+            'orderNumber' => 'required',
+            'transactionAmount' => 'required|numeric',
+            'customerMobileNo' => 'required',
+            'customer_email' => 'required|email',
+            'cardNumber' => 'required',
+            'expiry_month' => 'required',
+            'expiry_year' => 'required',
+            'cvv' => 'required',
+        ],[
+            'orderNumber.required' => 'Order Number is Required',
+            'transactionAmount.required' => 'Transaction Amount is required',
+            'customerMobileNo.required' => 'Customer Mobile Number is required',
+            'customer_email.required' => 'Customer Email address is required',
+            'cardNumber.required' => 'Card Number is required',
+            'expiry_month.required' => 'Expiry Month is required',
+            'expiry_year.required' => 'Expiry Year is required',
+            'cvv.required' => 'CVV is a required Field.'
+        ]);
+
+        if ($validator->fails()) return Utility::returnError($validator->errors()->first(), 'VALIDATION_ERROR', Response::HTTP_BAD_REQUEST);
+
+        $token = json_decode(self::GetToken()->getContent())->data->token;
+
+        self::setAuthToken($token);
+
+        $url = 'customer/validate';
+
+        $postFields = [
+            'basket_id' =>$data['orderNumber'],
+            'txnamt' => $data['transactionAmount'],
+            'customer_mobile_no'=> $data['customerMobileNo'],
+            'customer_email_address' => $data['customer_email'],
+            'account_type_id' => '1',
+            'card_number'=>$data['cardNumber'],
+            'expiry_month' => $data['expiry_month'],
+            'expiry_year' => $data['expiry_year'],
+            'cvv' => $data['cvv'],
+            'order_date' => \Illuminate\Support\Carbon::today()->toDateString(),
+            'data_3ds_callback_url' => self::getreturn_url(),
+            'currency_code' => 'PKR'
+        ];
+
+        $response = json_decode($this->PayfastPost($url,http_build_query($postFields)));
+
+        if($response->code != 00) {
+            return Utility::returnError(json_decode(Utility::PayfastErrorCodes($response->code)->getContent())->error_description,$response->code,Response::HTTP_BAD_REQUEST);
+        }
+        return Utility::returnSuccess($response);
     }
 
 
+    /**
+     * This API will provide the available list of issuer/bank.
+     * curl -X GET \
+     * <BASE_URL>/list/banks \
+     * -H 'cache-control: no-cache' \
+     * -H 'content-type: application/x-www-form-urlencoded'
+     * The above command returns following JSON structure:
+     *
+     * @return JsonResponse
+     */
+    public function ListBanks(): JsonResponse
+    {
+        $uri = '/list/banks';
+
+        $response = json_decode(self::PayfastGet($uri));
+
+        if($response->banks != null || $response->banks->isNotEmpty()) {
+            return Utility::returnSuccess($response->banks);
+        }
+        return Utility::returnError($response);
+    }
 
     /**
-     * Mobile Wallet Transaction
+     * This API will provide the Payment type (or account type, e.g. Account, Wallet or Debit Card) based on selected issuer/bank.
+     * curl -X GET \
+     * '<BASE_URL>/list/instruments?bank_code=<bank code>' \
+     * -H 'cache-control: no-cache' \
+     * -H 'content-type: application/x-www-form-urlencoded'
      *
-     * @param [type] $data
-     * @return void
+     * e.g. bank_code=12
+     *
+     * @param string $code
+     * @return bool|JsonResponse
      */
-    public function wallet($data){
-        // Data Received on Post Request for OTP Screen
+    public function ListInstrumentsWithBank(string $code): bool|JsonResponse
+    {
+        $uri = '/list/instruments?bank_code='.$code;
+
+        $response = json_decode(self::PayfastGet($uri));
+
+        if($response->bankInstruments != null || $response->code == 00) {
+            return Utility::returnSuccess($response->bankInstruments);
+        }
+        return Utility::returnError($response);
+    }
+
+    /**
+     * This API will fetch transaction details with respect to the transaction id or the basket id (provided by
+     * merchant).
+     * @param string $transactionId
+     * @return JsonResponse
+     */
+    public function GetTransactionDetails(string $transactionId): JsonResponse
+    {
+        $uri = '/transaction/'.$transactionId;
+        $response = json_decode(self::PayfastGet($uri));
+
+        if($response->bankInstruments != null || $response->code == 00) {
+            return Utility::returnSuccess($response->bankInstruments);
+        }
+
+        return Utility::returnError($response);
+    }
+
+    /**
+     * This API will allow merchant to initiate the request for transaction refund in case of any dispute in the transaction.
+     *
+     * @param $data
+     * @return bool|string
+     */
+    public function RefundTransactionRequest($data)
+    {
+
+        $uri = '/transaction/refund/'.$data['transactionId'];
+        $fields = [
+            'transaction_id' => $data['transactionId'],
+            'txnamt' => $data['transactionAmount'],
+            'refund_reason' => $data['refund_reason'],
+            'customer_ip' => $this->getip()
+        ];
+
+        $response = json_decode(self::PayfastPost($uri,http_build_query($fields)));
+        return $response;
+    }
+
+
+    public function PayWithEasyPaisa($data){
         $data['order_date'] = Carbon::today()->toDateString();
         $data['bank_code'] = 13; // Change it according to your own Bank i.e. Easy Paisa / Jazz Cash / UPaisa
+        return $this->ValidateWalletTransaction($data);
+    }
+
+    public function PayWithUPaisa($data)
+    {
+        $data['order_date'] = Carbon::today()->toDateString();
+        $data['bank_code'] = 14; // Change it according to your own Bank i.e. Easy Paisa / Jazz Cash / UPaisa
+        return $this->ValidateWalletTransaction($data);
+    }
+
+    /**
+     * @param $data
+     * @return bool|string
+     */
+    public function ValidateWalletTransaction($data): string|bool
+    {
         $data['account_type_id'] = 4;
-
+        $url = 'customer/validate';
         $field_string = http_build_query($data);
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $this->getApiUrl().'customer/validate',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $field_string,
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/x-www-form-urlencoded',
-            'Authorization: Bearer '.$this->getAuthToken()
-        ),
-        ));
+        $response = self::PayfastPost($url, $field_string);
 
-        $response = curl_exec($curl);
-        curl_close($curl);
-        if(json_decode($response)->code == "00"){
+        if (json_decode($response)->code == "00") {
             $data['token'] = $this->getAuthToken();
             $data['transaction_id'] = json_decode($response)->transaction_id;
             return $this->wallet_transaction($data);
         }
         return $response;
-    }    
+    }
 
     /**
-     * Initiate Transaction 
-     * 
+     * Mobile Wallet Initiate Transaction
+     */
+    public function wallet_transaction($data) {
+
+        $field_string = http_build_query($data);
+        $response = self::PayfastPost('transaction',$data);
+
+        return $response;
+    }
+
+    /**
+     * Initiate Transaction
+     *
      * This API will initiate payment/transaction request without token. e.g. Direct Transaction.
      * This function will be used for credit/debit card transaction.
      */
@@ -245,45 +304,18 @@ class PayFast {
     }
 
     /**
-     * Mobile Wallet Initiate Transaction
+     * Initiate Transaction Extracted
+     *
      */
-    public function wallet_transaction($data) {
-        // dd($data);
-        $field_string = http_build_query($data);
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $this->getApiUrl().'transaction',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $field_string,
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/x-www-form-urlencoded',
-            'Authorization: Bearer '.$this->getAuthToken()
-        ),
-        ));
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        return $response;
-    }
-    /**
-     * Initiate Transaction Extracted 
-     * 
-     */
-    public function __initiate_transaction($data) {
+    public function __initiate_transaction($data)
+    {
         // dd($data);
         $field_string = http_build_query($data);
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_URL => $this->getApiUrl().'transaction',
-            CURLOPT_RETURNTRANSFER => true, 
+            CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 0,
@@ -298,209 +330,12 @@ class PayFast {
         ));
         $response = curl_exec($curl);
         curl_close($curl);
-        return $response;        
-    }
-    /**
-     * This API will provide the available list of issuer/bank.
-     * 
-     * Request URL: /list/banks
-     */
-    public function list_banks()
-    {
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $this->getApiUrl().'list/banks',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => "",
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => "GET",
-        CURLOPT_HTTPHEADER => array(
-            "content-type: application/x-www-form-urlencoded",
-            'Authorization: Bearer '.$this->handshake->token,
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        return $response;
-    }
-
-    /**
-     * This API endpoint will provide the Payment type ( or account type e.g. Account, 
-     * Wallet, or Debit Card) based on selected issuer/bank. 
-     *   
-     */
-    public function payment_instrument_type($data)
-    {
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_PORT => "8443",
-            CURLOPT_URL => $this->getApiUrl().'list/instruments?bank_code='.$data,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => array(
-              "cache-control: no-cache",
-              "content-type: application/x-www-form-urlencoded",
-              'Authorization: Bearer '.$this->handshake->token,
-            ),
-        ));
-          
-        $response = curl_exec($curl);          
-        curl_close($curl);
-        return $response;
-    }
-
-    /**
-     * This API will provide the available list of issuer/bank based on instrument id.
-     * 
-     */
-    public function issuer_bank_instrument_id($data)
-    {
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_PORT => "8443",
-            CURLOPT_URL => $this->getApiUrl().'list/instrumentbanks?instrument_id='.$data,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => array(
-              "cache-control: no-cache",
-              "content-type: application/x-www-form-urlencoded",
-              'Authorization: Bearer '.$this->handshake->token,
-            ),
-        ));
-          
-        $response = curl_exec($curl);          
-        curl_close($curl);
         return $response;
     }
 
 
 
-    /**
-     * Get the value of Pares
-     */
-    public function getPares()
-    {
-        return $this->paRes;
-    }
 
-    /**
-     * Set the value of PaRes 
-     * 
-     * @return self
-     */
-    public function setPares($paRes)
-    {
-        $this->paRes = $paRes;
-        return $this;
-    }
 
-    /**
-     * Get the value of apiUrl
-     */
-    public function getApiUrl()
-    {
-        return $this->apiUrl;
-    }
 
-    /**
-     * Set the value of apiUrl
-     *
-     * @return  self
-     */
-    public function setApiUrl($apiUrl)
-    {
-        $this->apiUrl = $apiUrl;
-
-        return $this;
-    }
-
-    /**
-     * Get the value of auth_token
-     */
-    public function getAuthToken()
-    {
-        return $this->auth_token;
-    }
-
-    /**
-     * Set the value of auth_token
-     *
-     * @return  self
-     */
-    public function setAuthToken($auth_token)
-    {
-        $this->auth_token = $auth_token;
-
-        return $this;
-    }
-
-    /**
-     * Set the value for refreshToken
-     * 
-     * @return self
-     */
-    public function setRefreshToken($refreshToken)
-    {
-        $this->refreshToken = $refreshToken;
-        return $this;
-    }
-
-    /**
-     * Get the value for refreshToken
-     * 
-     * @return self
-     */
-    public function getRefreshToken()
-    {
-        return $this->refreshToken;
-    }
-
-    /**
-     * Set the value of Transaction Token
-     * 
-     * @return self
-     */
-    public function setTransactionId($tranId)
-    {
-        $this->transaction_id = $tranId;
-        return $this;
-    }
-
-    /**
-     * Get the value of Transaction Id
-     */
-    public function getTransactionId()
-    {
-        return $this->transaction_id;
-    }
-
-    /**
-     * Set the value for data_3ds_secureid
-     */
-    public function set_data_3ds_secureid($secureId)
-    {
-        $this->data_3ds_secureId = $secureId;
-        return $this;
-    }
-
-    /**
-     * Get the value for data 3ds SecureId
-     */
-    public function get_data_3ds_secureid()
-    {
-        return $this->data_3ds_secureId;
-    }
 }
