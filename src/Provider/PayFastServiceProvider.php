@@ -9,9 +9,17 @@ class PayFastServiceProvider extends \Illuminate\Support\ServiceProvider {
     public function boot()
     {
         if ($this->app->runningInConsole()) {
+//            Publishes Config file to the main config folder
             $this->publishes([
                 __DIR__.'/../../config/config.php'  => config_path('payfast.php'),
             ], 'config');
+
+//            Publish Migrations to the database migration
+            $this->publishes([
+                __DIR__.'/../database/2023_08_14_071018_create_process_payments_table_in_payfast.php' => database_path('migrations'),
+            ], 'payfast-migrations');
+
+
         }
     }
 

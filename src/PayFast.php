@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use zfhassaan\Payfast\Payment;
 use zfhassaan\Payfast\helper\Utility;
+use zfhassaan\Payfast\Models\ProcessPayment;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -143,7 +144,18 @@ class PayFast extends Payment
         if($response->code != 00) {
             return Utility::returnError(json_decode(Utility::PayfastErrorCodes($response->code)->getContent())->error_description,$response->code,Response::HTTP_BAD_REQUEST);
         }
-        return Utility::returnSuccess($response);
+        $options = [
+            'token' => json_decode(self::getAuthToken())->token,
+            'data_3ds_secureid' => json_decode($response)->customer_validation->data_3ds_secureid,
+            'transaction_id' => json_decode($response)->customer_validation->transaction_id,
+            'payload' => json_encode(['customer_validate'=>json_decode($response)->customer_validation,'user_request'=>$data]),
+            'requestData' => json_encode($data)
+        ];
+
+        $db = ProcessPayments::create($options);
+        Utility::LogData('Payfast','Database Storage Check', $db);
+
+        return Utility::returnSuccess(['token'=>self::getAuthToken(),'customer_validate' => $response]);
     }
 
 
@@ -234,15 +246,16 @@ class PayFast extends Payment
 
 
     public function PayWithEasyPaisa($data){
+
         $data['order_date'] = Carbon::today()->toDateString();
-        $data['bank_code'] = 13; // Change it according to your own Bank i.e. Easy Paisa / Jazz Cash / UPaisa
+        $data['bank_code'] = 13;
         return $this->ValidateWalletTransaction($data);
     }
 
     public function PayWithUPaisa($data)
     {
         $data['order_date'] = Carbon::today()->toDateString();
-        $data['bank_code'] = 14; // Change it according to your own Bank i.e. Easy Paisa / Jazz Cash / UPaisa
+        $data['bank_code'] = 14;
         return $this->ValidateWalletTransaction($data);
     }
 
