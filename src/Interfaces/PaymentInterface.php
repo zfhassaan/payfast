@@ -1,14 +1,19 @@
 <?php
 
-namespace Interface\PaymentInterface;
+namespace zfhassaan\Payfast\Interfaces;
 
 interface PaymentInterface {
-    public function getToken();
-    public function refreshToken();
-    public function customer_validate($data);
-    public function wallet($data);
-    public function initiate_transaction($data);
-    public function list_banks();
-    public function payment_instrument_type($data);
-    public function issuer_bank_instrument_id($data);
+    public function GetPayfastToken($fields);
+    public function GetToken();
+    public function RefreshToken(String $token, String $refresh_token);
+    public function GetOTPScreen($data);
+    public function ListBanks();
+    public function ListInstrumentsWithBank(String $code);
+    public function GetTransactionDetails(String $transactionId);
+    public function RefundTransactionRequest(Array $data);
+    public function PayWithEasyPaisa(Array $data);
+    public function PayWithUPaisa(Array $data);
+    public function ValidateWalletTransaction(Array $data);
+    public function WalletTransactionInitiate(Array $data);
+    public function InitiateTransaction(Array $data);
 }

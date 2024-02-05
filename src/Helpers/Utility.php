@@ -1,6 +1,6 @@
 <?php
 
-namespace zfhassaan\Payfast\helper;
+namespace zfhassaan\Payfast\Helpers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -18,9 +18,10 @@ class Utility {
      * @param string $channel
      * @param string $identifier
      * @param mixed $data
-     * @return null
+     * @return void
      */
-    public static function LogData(String $channel, String $identifier, mixed $data) {
+    public static function LogData(String $channel, String $identifier, mixed $data):void
+    {
         // Check if the specified channel exists in the logging configuration
         if (!config("logging.channels.$channel")) {
             // Create a new channel configuration if it doesn't exist
@@ -34,7 +35,7 @@ class Utility {
             Log::channel($channel);
         }
         // Log the data
-        return Log::channel($channel)->info('===== ' . $identifier . ' ====== ' . json_encode($data));
+        Log::channel($channel)->info('===== ' . $identifier . ' ====== ' . json_encode($data));
     }
 
     /**
@@ -68,7 +69,7 @@ class Utility {
 
         return response()->json([
             'status' => false,
-            'message' => 'Whoops! Something Went Wrong.',
+            'message' => $message,
             'code' => $code,
         ],$status);
     }
@@ -76,7 +77,7 @@ class Utility {
     /**
      * This function returns the Error Messages returned from the Payfast.
      */
-    public static function PayfastErrorCodes($code)
+    public static function PayfastErrorCodes($code): JsonResponse
     {
 
         $errorDescription = [

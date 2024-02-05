@@ -6,20 +6,26 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
-use Symfony\Component\HttpFoundation\Response as ResponseAlias;
-use zfhassaan\Payfast\Payment;
-use zfhassaan\Payfast\helper\Utility;
-use zfhassaan\Payfast\Models\ProcessPayment;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use zfhassaan\Payfast\Helpers\ConfigLoader;
+use zfhassaan\Payfast\Helpers\PayfastService;
+use zfhassaan\Payfast\Helpers\Utility;
+use zfhassaan\Payfast\Interfaces\PaymentInterface;
+use zfhassaan\Payfast\Models\ProcessPayment;
 
 /**
  * This section contains the details of all APIs provided by PAYFAST. The merchants, acquirers and/or
  * aggregators could call these APIs. These API\’S are based on REST architecture and serve standard HTTP
  * codes for the response payload.
- * @method getip()
+ * @method getup()
  */
-class PayFast extends Payment
+class PayFast extends PayfastService
 {
+    public mixed $config;
+    public function __construct(){
+        $this->load();
+    }
 
     /**
      * Authentication Access Token:
@@ -39,14 +45,13 @@ class PayFast extends Payment
                 "grant_type" => $this->grant_type,
                 "merchant_id" => $this->merchant_id,
                 "secured_key" => $this->secured_key,
-                "customer_ip" => $this->getip()
+                "customer_ip" => request()->ip()
             ];
-
-            $result = $this->getPayfastToken(http_build_query($options));
+            $result = json_decode($this->GetPayfastToken(http_build_query($options))->handshake);
 
             if($result->code == '00') {
-                $this->setAuthToken(($handshake = $this->getHandShake()) ? $handshake->token : false);
-                return Utility::returnSuccess(($result),'00'.$result->code);
+                $this->setAuthToken(($handshake = $this->getHandshake()) ? $handshake->token : false);
+                return Utility::returnSuccess($this->getHandshake(),'00'.$result->code);
             }
             return Utility::returnError($result);
         } catch(\Exception $e)
@@ -72,7 +77,6 @@ class PayFast extends Payment
      */
     public function RefreshToken(String $token,String $refresh_token): JsonResponse|null
     {
-
         $this->setAuthToken($token);
         $this->setRefreshToken($refresh_token);
 
@@ -139,7 +143,7 @@ class PayFast extends Payment
             'currency_code' => 'PKR'
         ];
 
-        $response = json_decode($this->PayfastPost($url,http_build_query($postFields)));
+        $response = json_decode($this->config->PayfastPost($url,http_build_query($postFields)));
 
         if($response->code != 00) {
             return Utility::returnError(json_decode(Utility::PayfastErrorCodes($response->code)->getContent())->error_description,$response->code,Response::HTTP_BAD_REQUEST);
@@ -152,7 +156,7 @@ class PayFast extends Payment
             'requestData' => json_encode($data)
         ];
 
-        $db = ProcessPayments::create($options);
+        $db = ProcessPayment::create($options);
         Utility::LogData('Payfast','Database Storage Check', $db);
 
         return Utility::returnSuccess(['token'=>self::getAuthToken(),'customer_validate' => $response]);
@@ -226,10 +230,10 @@ class PayFast extends Payment
     /**
      * This API will allow merchant to initiate the request for transaction refund in case of any dispute in the transaction.
      *
-     * @param $data
+     * @param array $data
      * @return bool|string
      */
-    public function RefundTransactionRequest($data)
+    public function RefundTransactionRequest(Array $data): bool|string
     {
 
         $uri = '/transaction/refund/'.$data['transactionId'];
@@ -273,7 +277,7 @@ class PayFast extends Payment
         if (json_decode($response)->code == "00") {
             $data['token'] = $this->getAuthToken();
             $data['transaction_id'] = json_decode($response)->transaction_id;
-            return $this->wallet_transaction($data);
+            return $this->WalletTransactionInitiate($data);
         }
         return $response;
     }
@@ -281,12 +285,11 @@ class PayFast extends Payment
     /**
      * Mobile Wallet Initiate Transaction
      */
-    public function wallet_transaction($data) {
+    public function WalletTransactionInitiate($data): bool|string
+    {
 
         $field_string = http_build_query($data);
-        $response = self::PayfastPost('transaction',$data);
-
-        return $response;
+        return self::PayfastPost('transaction',$data);
     }
 
     /**
@@ -295,7 +298,7 @@ class PayFast extends Payment
      * This API will initiate payment/transaction request without token. e.g. Direct Transaction.
      * This function will be used for credit/debit card transaction.
      */
-    public function initiate_transaction($data)
+    public function InitiateTransaction(Array $data): bool|string
     {
         $res = [
             "user_id"=> $data['user_id'],

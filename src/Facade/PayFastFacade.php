@@ -14,4 +14,12 @@ class PayFastFacade extends Facade
     {
         return 'payfast';
     }
+
+    public static function getToken(){
+        return static::resolveFacadeInstance('payfast')->GetToken();
+    }
+
+    public static function refreshToken($token,$refresh_token){
+        return static::resolveFacadeInstance('payfast')->RefreshToken($token,$refresh_token);
+    }
 }
