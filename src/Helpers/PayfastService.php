@@ -92,18 +92,22 @@ abstract class PayfastService implements PaymentInterface
      * http_post_fields() format.
      *
      * @param String $url
+     * @param $fields
+     * @return mixed
      */
-    public function PayfastPost(string $url, $fields): bool|string
+
+    public function PayfastPost(string $url, $fields): mixed
     {
         $uri = self::getApiUrl() . $url;
-        Utility::LogData('Payfast','Payfast POST URL 158', $uri);
+//        dd($uri);
+        Utility::LogData('Payfast','Payfast POST URL', $uri);
         $headers = [
+            'cache-control: no-cache',
             'Content-Type: application/x-www-form-urlencoded',
             'Authorization: Bearer '.self::getAuthToken()
         ];
-        Utility::LogData('Payfast','Payfast POST Headers',$headers);
-
-        return HttpCommunicator::post($this->getAuthToken(), $uri, $fields, $headers);
+        $result = HttpCommunicator::post($this->getAuthToken(), $uri, $fields, $headers);
+        return response()->json($result)->getOriginalContent();
     }
 
     /**

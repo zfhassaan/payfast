@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use zfhassaan\Payfast\Helpers\ConfigLoader;
+use zfhassaan\Payfast\Helpers\HttpCommunicator;
 use zfhassaan\Payfast\Helpers\PayfastService;
 use zfhassaan\Payfast\Helpers\Utility;
 use zfhassaan\Payfast\Interfaces\PaymentInterface;
@@ -85,8 +86,7 @@ class PayFast extends PayfastService
             'refresh_token' => $refresh_token
         ]);
 
-        $response = json_decode($this->PayfastPost('refreshtoken',$postFields));
-
+        $response = $this->PayfastPost('refreshtoken',$postFields);
         return $response->code != '00' ? Utility::returnError($response, $response->code, ResponseAlias::HTTP_BAD_REQUEST) : Utility::returnSuccess($response,'00'.$response->code);
     }
 
@@ -94,6 +94,17 @@ class PayFast extends PayfastService
      * This API will be used if you choose to send OTP to registered mobile number of the customer
      * that respective Issuer/Bank. This API will be used if you choose to send OTP to registered mobile number of the
      * customer with that respective Issuer/Bank.
+     *
+     * {
+     * "orderNumber": "123456789",
+     * "transactionAmount": "1",
+     * "customerMobileNo": "03xxxxxxxxx",
+     * "customer_email": "example@gmail.com",
+     * "cardNumber": "xxxxxxxxxxxxxxxx",
+     * "expiry_month": "xx",
+     * "expiry_year": "xx",
+     * "cvv": "xxxx"
+     * }
      *
      * @param $data
      * @return JsonResponse
@@ -139,20 +150,21 @@ class PayFast extends PayfastService
             'expiry_year' => $data['expiry_year'],
             'cvv' => $data['cvv'],
             'order_date' => \Illuminate\Support\Carbon::today()->toDateString(),
-            'data_3ds_callback_url' => self::getreturn_url(),
+            'data_3ds_callback_url' => $this->getReturnUrl(),
             'currency_code' => 'PKR'
         ];
 
-        $response = json_decode($this->config->PayfastPost($url,http_build_query($postFields)));
+        $response = $this->PayfastPost($url,http_build_query($postFields));
 
         if($response->code != 00) {
             return Utility::returnError(json_decode(Utility::PayfastErrorCodes($response->code)->getContent())->error_description,$response->code,Response::HTTP_BAD_REQUEST);
         }
+
         $options = [
-            'token' => json_decode(self::getAuthToken())->token,
-            'data_3ds_secureid' => json_decode($response)->customer_validation->data_3ds_secureid,
-            'transaction_id' => json_decode($response)->customer_validation->transaction_id,
-            'payload' => json_encode(['customer_validate'=>json_decode($response)->customer_validation,'user_request'=>$data]),
+            'token' => self::getAuthToken(),
+            'data_3ds_secureid' => $response->data_3ds_secureid,
+            'transaction_id' => $response->transaction_id,
+            'payload' => json_encode(['customer_validate'=>$response,'user_request'=>$data]),
             'requestData' => json_encode($data)
         ];
 
@@ -175,9 +187,13 @@ class PayFast extends PayfastService
      */
     public function ListBanks(): JsonResponse
     {
-        $uri = '/list/banks';
-
-        $response = json_decode(self::PayfastGet($uri));
+        $uri = $this->getApiUrl().'/list/banks';
+        $headers = [
+            'cache-control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.self::getAuthToken()
+        ];
+        $response = HttpCommunicator::get($uri,$headers);
 
         if($response->banks != null || $response->banks->isNotEmpty()) {
             return Utility::returnSuccess($response->banks);
@@ -194,14 +210,19 @@ class PayFast extends PayfastService
      *
      * e.g. bank_code=12
      *
-     * @param string $code
+     * @param string|array $code
      * @return bool|JsonResponse
      */
-    public function ListInstrumentsWithBank(string $code): bool|JsonResponse
+    public function ListInstrumentsWithBank(Array|string $code): bool|JsonResponse
     {
-        $uri = '/list/instruments?bank_code='.$code;
 
-        $response = json_decode(self::PayfastGet($uri));
+        $uri = $this->getApiUrl().'/list/instruments?bank_code='.$code;
+        $headers = [
+            'cache-control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.self::getAuthToken()
+        ];
+        $response = HttpCommunicator::get($uri,$headers);
 
         if($response->bankInstruments != null || $response->code == 00) {
             return Utility::returnSuccess($response->bankInstruments);
@@ -210,15 +231,44 @@ class PayFast extends PayfastService
     }
 
     /**
-     * This API will fetch transaction details with respect to the transaction id or the basket id (provided by
+     * 3.12 This API will fetch transaction details with respect to the transaction id or the basket id (provided by
      * merchant).
      * @param string $transactionId
      * @return JsonResponse
      */
     public function GetTransactionDetails(string $transactionId): JsonResponse
     {
-        $uri = '/transaction/'.$transactionId;
-        $response = json_decode(self::PayfastGet($uri));
+        dd($this->getAuthToken());
+        $uri = $this->getApiUrl().'/transaction/'.$transactionId;
+        $headers = [
+            'cache-control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.self::getAuthToken()
+        ];
+        $response = HttpCommunicator::get($uri, $headers);
+
+        if($response->bankInstruments != null || $response->code == 00) {
+            return Utility::returnSuccess($response->bankInstruments);
+        }
+
+        return Utility::returnError($response);
+    }
+
+    /**
+     * 3.12.1 This API will fetch transaction details with respect to the Basket id (provided by
+     * merchant).
+     * @param string $basket_id
+     * @return JsonResponse
+     */
+    public function GetTransactionDetailsByBasketId(string $basket_id): JsonResponse
+    {
+        $uri = $this->getApiUrl().'/transaction/basket_id'.$basket_id;
+        $headers = [
+            'cache-control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Authorization: Bearer '.self::getAuthToken()
+        ];
+        $response = HttpCommunicator::get($uri, $headers);
 
         if($response->bankInstruments != null || $response->code == 00) {
             return Utility::returnSuccess($response->bankInstruments);

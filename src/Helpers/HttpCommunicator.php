@@ -15,8 +15,25 @@ class HttpCommunicator {
 
     }
     // Method to perform GET requests
-    public static function get($url, $headers = []) {
+    public static function get($url, $headers = []): mixed
+    {
+        $curl = curl_init();
 
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => $headers,
+        ));
+
+        $response = curl_exec($curl);
+        curl_close($curl);
+
+        return json_decode($response);
     }
 
     /**
@@ -27,15 +44,27 @@ class HttpCommunicator {
      * @param String $url
      * @param array $data
      * @param array $headers
-     * @return string
+     * @return mixed
      */
-    public static function post(String $token, String $url,mixed $data, Array $headers = []): string
+    public static function post(String $token, String $url,mixed $data, Array $headers = [])
     {
+        $curl = curl_init();
 
-        $fieldString = http_build_query($data);
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $data,
+            CURLOPT_HTTPHEADER => $headers,
+        ));
 
-        $response = Http::withHeaders($headers)->post($url, $fieldString);
-
-        return Utility::returnSuccess($response,Response::HTTP_OK);
+        $response = curl_exec($curl);
+        $result = response()->json($response);
+        return json_decode($result->getOriginalContent());
     }
 }
