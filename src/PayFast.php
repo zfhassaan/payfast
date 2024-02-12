@@ -238,7 +238,6 @@ class PayFast extends PayfastService
      */
     public function GetTransactionDetails(string $transactionId): JsonResponse
     {
-        dd($this->getAuthToken());
         $uri = $this->getApiUrl().'/transaction/'.$transactionId;
         $headers = [
             'cache-control: no-cache',
