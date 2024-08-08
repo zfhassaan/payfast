@@ -89,6 +89,11 @@ class Payment {
         $this->authToken = $authToken;
     }
 
+    public function getip()
+    {
+        return $this->ip;
+    }
+    
     public function setRefreshToken($token){
         $this->refreshToken = $token;
     }
@@ -108,40 +113,44 @@ class Payment {
             }
         }
     }
+    
+    public function getReturnUrl() 
+    {
+        return $this->return_url;
+    }
+    
+    public function setReturnUrl($returnUrl) 
+    {
+        $this->return_url = $returnUrl;
+    }
+    
 
-    public function getPayfastToken($fields) {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->getApiUrl().'token');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $fields);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        return $this->setHandShake(json_decode(curl_exec($ch)));
+    public function getPayfastToken($fields) 
+    {
+        $uri = self::getApiUrl();
+        $headers = [
+           "cache-control: no-cache",
+           "content-type: application/x-www-form-urlencoded"
+        ];
+
+        $curl = Utility::initializeCurl($uri, $headers, 'POST');
+        curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($fields));
+        $response = Utility::executeCurl($curl);
+        return $this->setHandShake(json_decode($response));
     }
 
-    public function PayfastGet($url): bool|string
+    public function payfastGet($url): bool|string
     {
         $uri = self::getApiUrl() . $url;
         $this->setHandShake(json_decode($this->getToken()->getContent())->data);
         $this->setAuthToken(($handshake = $this->getHandShake()) ? $handshake->token : false);
-
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-        CURLOPT_URL => $uri,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => "",
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => "GET",
-        CURLOPT_HTTPHEADER => array(
+        $headers = [
             "content-type: application/x-www-form-urlencoded",
             'Authorization: Bearer '.$this->getHandShake()->token,
-        ),
-        ));
+        ];
+        $curl = Utility::initializeCurl($uri, $headers, 'GET');
 
-        $response = curl_exec($curl);
-        curl_close($curl);
+        $response = Utility::executeCurl($curl);
 
         return $response;
     }
@@ -153,7 +162,7 @@ class Payment {
      *
      * @param String $url
      */
-    public function PayfastPost(string $url, $fields): bool|string
+    public function payfastPost(string $url, $fields): bool|string
     {
         $uri = self::getApiUrl() . $url;
         Utility::LogData('Payfast','Payfast POST URL 158', $uri);
@@ -163,27 +172,10 @@ class Payment {
         ];
         Utility::LogData('Payfast','Payfast POST Headers',$headers);
 
-        $curl = curl_init();
+        $curl = Utility::initializeCurl($uri, $headers, 'POST');
+        curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($fields));
 
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $uri,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $fields,
-            CURLOPT_HTTPHEADER => $headers,
-        ));
-
-        $response = curl_exec($curl);
-        Utility::LogData('Payfast','Payfast Response ',$response);
-        curl_close($curl);
+        $response = Utility::executeCurl($curl);
         return $response;
     }
-
-
-
 }

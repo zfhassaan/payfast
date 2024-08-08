@@ -4,11 +4,17 @@ namespace Interface\PaymentInterface;
 
 interface PaymentInterface {
     public function getToken();
-    public function refreshToken();
-    public function customer_validate($data);
-    public function wallet($data);
-    public function initiate_transaction($data);
-    public function list_banks();
-    public function payment_instrument_type($data);
-    public function issuer_bank_instrument_id($data);
+    public function refreshToken(string $token, string $refresh_token);
+    public function initiateTransaction(array $data);
+    public function walletTransaction(array $data);
+    public function refundTransactionRequest(array $data);
+    public function listBanks();
+    public function listInstrumentsWithBank(string $code);
+    public function getTransactionDetails(string $transactionId);
+    public function validateWalletTransaction(array $data);
+    public function getOtpScreen(array $data);
+    public function  payWithEasyPaisa(array $data);
+    public function  payWithUPaisa(array $data);
+    public function  addPermenantPaymentInstrument(array $data);
+
 }

@@ -2,6 +2,7 @@
 
 namespace zfhassaan\Payfast\helper;
 
+use CurlHandle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Response;
@@ -124,5 +125,31 @@ class Utility {
         } else {
             return JResponse::json(['error_description' => 'Unknown Error Code'], 406);
         }
+    }
+
+    public static function initializeCurl(string $uri, array $headers, string $customRequest): CurlHandle
+    {
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $uri,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => $customRequest,
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+
+        return $curl;
+    }
+
+    public static function executeCurl(CurlHandle $curl): bool|string
+    {
+       $response = curl_exec($curl);
+       Utility::LogData('Payfast','Payfast Response ',$response);
+
+       curl_close($curl);
+       return $response;
     }
 }

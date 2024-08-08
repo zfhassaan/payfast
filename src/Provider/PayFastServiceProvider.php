@@ -2,6 +2,9 @@
 
 namespace zfhassaan\Payfast\Provider;
 
+use zfhassaan\Payfast\PayFast;
+use zfhassaan\Payfast\Services\PayFastService;
+
 class PayFastServiceProvider extends \Illuminate\Support\ServiceProvider {
     /**
      * Bootstrap the application Services.
@@ -33,7 +36,10 @@ class PayFastServiceProvider extends \Illuminate\Support\ServiceProvider {
 
         // Register the main class to use with the facade
         $this->app->singleton('payfast', function () {
-            return new PayFast;
+            return new PayFast(new PayFastService);
         });
+
+        $this->app->singleton(PayFastService::class, PayfastService::class);
+
     }
 }
