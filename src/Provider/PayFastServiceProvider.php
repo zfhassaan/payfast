@@ -59,6 +59,30 @@ class PayFastServiceProvider extends ServiceProvider
                 __DIR__ . '/../Console/CABPayments.php.stub' => app_path('Console/Commands/PayfastCheckPendingPayments.php'),
             ], 'payfast-command');
 
+            // Publish tests
+            $this->publishes([
+                // Base TestCase
+                __DIR__ . '/../../tests/TestCase.php' => base_path('tests/PayFast/TestCase.php'),
+                
+                // Unit Tests
+                __DIR__ . '/../../tests/Unit/TestCase.php' => base_path('tests/Unit/PayFast/TestCase.php'),
+                __DIR__ . '/../../tests/Unit/PayFastTest.php' => base_path('tests/Unit/PayFast/PayFastTest.php'),
+                __DIR__ . '/../../tests/Unit/Console/CABPaymentsTest.php' => base_path('tests/Unit/PayFast/Console/CABPaymentsTest.php'),
+                __DIR__ . '/../../tests/Unit/DTOs/PaymentRequestDTOTest.php' => base_path('tests/Unit/PayFast/DTOs/PaymentRequestDTOTest.php'),
+                __DIR__ . '/../../tests/Unit/Events/PaymentEventsTest.php' => base_path('tests/Unit/PayFast/Events/PaymentEventsTest.php'),
+                __DIR__ . '/../../tests/Unit/Helpers/UtilityTest.php' => base_path('tests/Unit/PayFast/Helpers/UtilityTest.php'),
+                __DIR__ . '/../../tests/Unit/Listeners/LogPaymentActivityTest.php' => base_path('tests/Unit/PayFast/Listeners/LogPaymentActivityTest.php'),
+                __DIR__ . '/../../tests/Unit/Models/ProcessPaymentTest.php' => base_path('tests/Unit/PayFast/Models/ProcessPaymentTest.php'),
+                __DIR__ . '/../../tests/Unit/Repositories/ProcessPaymentRepositoryTest.php' => base_path('tests/Unit/PayFast/Repositories/ProcessPaymentRepositoryTest.php'),
+                __DIR__ . '/../../tests/Unit/Services/AuthenticationServiceTest.php' => base_path('tests/Unit/PayFast/Services/AuthenticationServiceTest.php'),
+                __DIR__ . '/../../tests/Unit/Services/OTPVerificationServiceTest.php' => base_path('tests/Unit/PayFast/Services/OTPVerificationServiceTest.php'),
+                __DIR__ . '/../../tests/Unit/Services/PaymentServiceTest.php' => base_path('tests/Unit/PayFast/Services/PaymentServiceTest.php'),
+                __DIR__ . '/../../tests/Unit/Services/TransactionServiceTest.php' => base_path('tests/Unit/PayFast/Services/TransactionServiceTest.php'),
+                
+                // Feature Tests
+                __DIR__ . '/../../tests/Feature/PaymentFlowTest.php' => base_path('tests/Feature/PayFast/PaymentFlowTest.php'),
+            ], 'payfast-tests');
+
             // Register event listeners
             $this->registerEventListeners();
         }

@@ -23,7 +23,19 @@ abstract class TestCase extends OrchestraTestCase
         parent::setUp();
 
         // Load migrations - RefreshDatabase will handle running them
-        $this->loadMigrationsFrom(__DIR__ . '/../../src/database/migrations');
+        // Try multiple paths to support both package development and published tests
+        $possiblePaths = [
+            __DIR__ . '/../../src/database/migrations', // Package development
+            base_path('vendor/zfhassaan/payfast/src/database/migrations'), // Published from vendor
+            base_path('packages/zfhassaan/payfast/src/database/migrations'), // Local package
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                $this->loadMigrationsFrom($path);
+                break;
+            }
+        }
 
         // Set test configuration
         $this->app['config']->set('payfast.api_url', 'https://api.payfast.test');
