@@ -20,7 +20,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('activity_logs', function (Blueprint $table) {
+        Schema::create('payfast_activity_logs', function (Blueprint $table) {
             $table->id();
             $table->uuid('uid')->default(\Illuminate\Support\Str::uuid());
             $table->unsignedBigInteger('user_id')->index()->comment('The ID of the user');

@@ -16,7 +16,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('process_payments_table_in_payfast', function (Blueprint $table) {
+        Schema::create('payfast_process_payments_table', function (Blueprint $table) {
             $table->id();
             $table->uuid('uid')->default(\Illuminate\Support\Str::uuid());
             $table->string('token');

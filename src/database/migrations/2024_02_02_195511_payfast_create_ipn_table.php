@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * This table is used to store all the processed transactions that are completed and the completion ipn is received from
@@ -14,7 +15,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('ipn_table', function (Blueprint $table) {
+        Schema::create('payfast_ipn_table', function (Blueprint $table) {
             $table->id();
             $table->uuid('uid')->default(Str::uuid())->comment('A unique identifier for each IPN log');
             $table->string('order_no')->default(NULL)->comment('Order No from App to track the status.');
@@ -24,7 +25,6 @@ return new class extends Migration {
             $table->string('currency', 3)->comment('Currency code of the transaction amount');
             $table->json('details')->nullable()->comment('JSON containing additional details of the transaction');
             $table->timestamp('received_at')->useCurrent()->comment('Timestamp when the IPN was received');
-
             $table->softDeletes();
             $table->timestamps();
         });
