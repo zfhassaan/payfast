@@ -28,6 +28,7 @@ use zfhassaan\Payfast\Database\Factories\ProcessPaymentFactory;
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static where(string $string, string $string1)
  */
 class ProcessPayment extends Model
 {

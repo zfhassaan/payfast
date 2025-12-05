@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace zfhassaan\Payfast\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use zfhassaan\Payfast\Models\ActivityLog;
 use zfhassaan\Payfast\Repositories\Contracts\ActivityLogRepositoryInterface;
 
@@ -35,9 +36,9 @@ class ActivityLogRepository implements ActivityLogRepositoryInterface
      * Find activity logs by order number.
      *
      * @param string $orderNo
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection
      */
-    public function findByOrderNo(string $orderNo)
+    public function findByOrderNo(string $orderNo): Collection
     {
         return ActivityLog::where('order_no', $orderNo)->get();
     }
@@ -46,20 +47,20 @@ class ActivityLogRepository implements ActivityLogRepositoryInterface
      * Find activity logs by user ID.
      *
      * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection
      */
-    public function findByUserId(int $userId)
+    public function findByUserId(int $userId): Collection
     {
-        return ActivityLog::where('user_id', $userId)->get();
+        return ActivityLog::where('user_id', (string)$userId)->get();
     }
 
     /**
      * Find activity logs by status.
      *
      * @param string $status
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection
      */
-    public function findByStatus(string $status)
+    public function findByStatus(string $status): Collection
     {
         return ActivityLog::where('status', $status)->get();
     }

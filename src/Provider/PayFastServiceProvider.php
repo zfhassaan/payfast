@@ -17,11 +17,13 @@ use zfhassaan\Payfast\Services\ConfigService;
 use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\EmailNotificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
+use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 use zfhassaan\Payfast\Services\EmailNotificationService;
 use zfhassaan\Payfast\Services\HttpClientService;
+use zfhassaan\Payfast\Services\IPNService;
 use zfhassaan\Payfast\Services\OTPVerificationService;
 use zfhassaan\Payfast\Services\PaymentService;
 use zfhassaan\Payfast\Services\TransactionService;
@@ -117,6 +119,9 @@ class PayFastServiceProvider extends ServiceProvider
         // Register email notification service
         $this->app->singleton(EmailNotificationServiceInterface::class, EmailNotificationService::class);
 
+        // Register IPN service
+        $this->app->singleton(IPNServiceInterface::class, IPNService::class);
+
         // Register the main PayFast class
         $this->app->singleton('payfast', function ($app) {
             return new PayFast(
@@ -124,7 +129,8 @@ class PayFastServiceProvider extends ServiceProvider
                 $app->make(PaymentServiceInterface::class),
                 $app->make(TransactionServiceInterface::class),
                 $app->make(OTPVerificationServiceInterface::class),
-                $app->make(ProcessPaymentRepositoryInterface::class)
+                $app->make(ProcessPaymentRepositoryInterface::class),
+                $app->make(IPNServiceInterface::class)
             );
         });
     }

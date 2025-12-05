@@ -7,17 +7,22 @@ namespace Tests\Feature;
 use Illuminate\Support\Facades\Event;
 use Mockery;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
+use zfhassaan\Payfast\PayFast;
 use zfhassaan\Payfast\Provider\PayFastServiceProvider;
 use zfhassaan\Payfast\Events\PaymentCompleted;
 use zfhassaan\Payfast\Events\PaymentFailed;
 use zfhassaan\Payfast\Events\PaymentValidated;
-use zfhassaan\Payfast\Facades\PayFast;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
 
 class PaymentFlowTest extends OrchestraTestCase
 {
+
+    public function __construct(private readonly Payfast $payfast, string $name)
+    {
+        parent::__construct($name);
+    }
 
     protected function setUp(): void
     {
@@ -104,7 +109,7 @@ class PaymentFlowTest extends OrchestraTestCase
         $this->app->instance(PaymentServiceInterface::class, $paymentService);
 
         // Step 1: Get OTP Screen (Customer Validation)
-        $response = PayFast::getOTPScreen($paymentData);
+        $response = $this->payfast->getOTPScreen($paymentData);
         $result = json_decode($response->getContent(), true);
 
         $this->assertTrue($result['status']);
@@ -120,7 +125,7 @@ class PaymentFlowTest extends OrchestraTestCase
 
         // Step 2: Verify OTP and Store Pares
         $pares = 'pares_value_123';
-        $response = PayFast::verifyOTPAndStorePares('TXN-123', '123456', $pares);
+        $response = $this->payfast->verifyOTPAndStorePares('TXN-123', '123456', $pares);
         $result = json_decode($response->getContent(), true);
 
         $this->assertTrue($result['status']);
@@ -136,7 +141,7 @@ class PaymentFlowTest extends OrchestraTestCase
                 'message' => 'Transaction successful',
             ]);
 
-        $response = PayFast::completeTransactionFromPares($pares);
+        $response = $this->payfast->completeTransactionFromPares($pares);
         $result = json_decode($response->getContent(), true);
 
         $this->assertTrue($result['status']);
@@ -181,7 +186,7 @@ class PaymentFlowTest extends OrchestraTestCase
         $this->app->instance(AuthenticationServiceInterface::class, $authService);
         $this->app->instance(PaymentServiceInterface::class, $paymentService);
 
-        $response = PayFast::getOTPScreen($paymentData);
+        $response = $this->payfast->getOTPScreen($paymentData);
         $result = json_decode($response->getContent(), true);
 
         $this->assertFalse($result['status']);
@@ -218,7 +223,7 @@ class PaymentFlowTest extends OrchestraTestCase
         $this->app->instance(AuthenticationServiceInterface::class, $authService);
         $this->app->instance(PaymentServiceInterface::class, $paymentService);
 
-        $response = PayFast::payWithEasyPaisa($paymentData);
+        $response = $this->payfast->payWithEasyPaisa($paymentData);
         $result = json_decode($response, true);
 
         $this->assertTrue($result['status']);

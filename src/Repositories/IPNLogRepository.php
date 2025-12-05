@@ -37,7 +37,7 @@ class IPNLogRepository implements IPNLogRepositoryInterface
      * @param string $orderNo
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function findByOrderNo(string $orderNo)
+    public function findByOrderNo(string $orderNo): \Illuminate\Database\Eloquent\Collection
     {
         return IPNLog::where('order_no', $orderNo)->get();
     }

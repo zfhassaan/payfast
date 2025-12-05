@@ -120,4 +120,12 @@ interface PaymentInterface
      * @return \Illuminate\Http\JsonResponse
      */
     public function completeTransactionFromPares(string $pares): \Illuminate\Http\JsonResponse;
+
+    /**
+     * Handle IPN (Instant Payment Notification) webhook from PayFast.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function handleIPN(array $data): JsonResponse;
 }

@@ -21,6 +21,7 @@ use zfhassaan\Payfast\Interfaces\PaymentInterface;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
 use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
@@ -42,7 +43,8 @@ class PayFast implements PaymentInterface
         private readonly PaymentServiceInterface $paymentService,
         private readonly TransactionServiceInterface $transactionService,
         private readonly OTPVerificationServiceInterface $otpVerificationService,
-        private readonly ProcessPaymentRepositoryInterface $paymentRepository
+        private readonly ProcessPaymentRepositoryInterface $paymentRepository,
+        private readonly IPNServiceInterface $ipnService
     ) {
     }
 
@@ -582,6 +584,35 @@ class PayFast implements PaymentInterface
             return Utility::returnError($result['data'] ?? [], $result['message'], $result['code']);
         } catch (\Exception $e) {
             return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle IPN (Instant Payment Notification) webhook from PayFast.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function handleIPN(array $data): JsonResponse
+    {
+        try {
+            $result = $this->ipnService->processIPN($data);
+
+            if ($result['status']) {
+                return Utility::returnSuccess(
+                    $result['data'] ?? [],
+                    $result['message'] ?? 'IPN processed successfully',
+                    $result['code'] ?? '00'
+                );
+            }
+
+            return Utility::returnError(
+                $result['data'] ?? [],
+                $result['message'] ?? 'Failed to process IPN',
+                $result['code'] ?? 'IPN_ERROR'
+            );
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage(), 'IPN_EXCEPTION');
         }
     }
 }
