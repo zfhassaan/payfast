@@ -59,12 +59,12 @@ class PayFast implements PaymentInterface
             if (isset($response['code']) && $response['code'] === '00') {
                 $this->authToken = $response['data']['token'] ?? null;
 
-                return Utility::returnSuccess($response['data'] ?? $response, $response['code']);
+                return Utility::returnSuccess($response['data'] ?? $response, 'Token retrieved successfully', $response['code']);
             }
 
-            return Utility::returnError($response['message'] ?? 'Failed to get token', $response['code'] ?? '');
+            return Utility::returnError($response, $response['message'] ?? 'Failed to get token', $response['code'] ?? '');
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -86,16 +86,17 @@ class PayFast implements PaymentInterface
 
                 Event::dispatch(new TokenRefreshed($token, $this->authToken));
 
-                return Utility::returnSuccess($response['data'] ?? $response, $response['code'] ?? '00');
+                return Utility::returnSuccess($response['data'] ?? $response, 'Token refreshed successfully', $response['code'] ?? '00');
             }
 
             return Utility::returnError(
+                $response,
                 $response['message'] ?? 'Failed to refresh token',
                 $response['code'] ?? '',
                 ResponseAlias::HTTP_BAD_REQUEST
             );
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -129,6 +130,7 @@ class PayFast implements PaymentInterface
 
         if ($validator->fails()) {
             return Utility::returnError(
+                $validator->errors(),
                 $validator->errors()->first(),
                 'VALIDATION_ERROR',
                 Response::HTTP_BAD_REQUEST
@@ -141,7 +143,7 @@ class PayFast implements PaymentInterface
             $tokenData = json_decode($tokenResponse->getContent(), true);
 
             if (!isset($tokenData['data']['token'])) {
-                return Utility::returnError('Failed to get authentication token', 'AUTH_ERROR');
+                return Utility::returnError($tokenData, 'Failed to get authentication token', 'AUTH_ERROR');
             }
 
             $this->authToken = $tokenData['data']['token'];
@@ -160,6 +162,7 @@ class PayFast implements PaymentInterface
                 Event::dispatch(new PaymentFailed($data, $errorCode, $errorData['error_description'] ?? ''));
 
                 return Utility::returnError(
+                    $errorData,
                     $errorData['error_description'] ?? 'Validation failed',
                     $errorCode,
                     Response::HTTP_BAD_REQUEST
@@ -192,11 +195,11 @@ class PayFast implements PaymentInterface
                 'transaction_id' => $validationResponse['transaction_id'] ?? '',
                 'payment_id' => $payment->id,
                 'redirect_url' => $validationResponse['redirect_url'] ?? null, // OTP screen URL if provided by PayFast
-            ], $validationResponse['code'] ?? '00');
+            ], 'OTP screen retrieved successfully', $validationResponse['code'] ?? '00');
         } catch (\Exception $e) {
             Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
 
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -215,18 +218,18 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return Utility::returnError('Authentication token is required', 'AUTH_ERROR');
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $response = $this->transactionService->listBanks($this->authToken);
 
-            if (isset($response['banks']) && !empty($response['banks'])) {
-                return Utility::returnSuccess($response['banks']);
+            if (!empty($response['banks'])) {
+                return Utility::returnSuccess($response['banks'], 'Banks listed successfully', '00');
             }
 
-            return Utility::returnError($response);
+            return Utility::returnError($response, 'Error Generating Banks List');
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage(), 'Internal Server Error');
         }
     }
 
@@ -246,19 +249,19 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return Utility::returnError('Authentication token is required', 'AUTH_ERROR');
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $bankCode = is_array($code) ? ($code['bank_code'] ?? '') : $code;
             $response = $this->transactionService->listInstrumentsWithBank($bankCode, $this->authToken);
 
             if (isset($response['bankInstruments']) || (isset($response['code']) && $response['code'] === '00')) {
-                return Utility::returnSuccess($response['bankInstruments'] ?? $response);
+                return Utility::returnSuccess($response['bankInstruments'] ?? $response, 'Bank instruments retrieved successfully', $response['code'] ?? '00');
             }
 
-            return Utility::returnError($response);
+            return Utility::returnError($response, 'Failed to retrieve bank instruments');
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -278,18 +281,18 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return Utility::returnError('Authentication token is required', 'AUTH_ERROR');
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $response = $this->transactionService->getTransactionDetails($transactionId, $this->authToken);
 
             if (isset($response['code']) && $response['code'] === '00') {
-                return Utility::returnSuccess($response);
+                return Utility::returnSuccess($response, 'Transaction details retrieved successfully', $response['code']);
             }
 
-            return Utility::returnError($response);
+            return Utility::returnError($response, $response['message'] ?? 'Failed to retrieve transaction details', $response['code'] ?? '');
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -309,18 +312,18 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return Utility::returnError('Authentication token is required', 'AUTH_ERROR');
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $response = $this->transactionService->getTransactionDetailsByBasketId($basketId, $this->authToken);
 
             if (isset($response['code']) && $response['code'] === '00') {
-                return Utility::returnSuccess($response);
+                return Utility::returnSuccess($response, 'Transaction details retrieved successfully', $response['code']);
             }
 
-            return Utility::returnError($response);
+            return Utility::returnError($response, $response['message'] ?? 'Failed to retrieve transaction details', $response['code'] ?? '');
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -552,12 +555,12 @@ class PayFast implements PaymentInterface
             $result = $this->otpVerificationService->verifyOTPAndStorePares($transactionId, $otp, $pares);
 
             if ($result['status']) {
-                return Utility::returnSuccess($result['data'], $result['code']);
+                return Utility::returnSuccess($result['data'], 'OTP verified and pares stored successfully', $result['code']);
             }
 
-            return Utility::returnError($result['message'], $result['code']);
+            return Utility::returnError($result['data'] ?? [], $result['message'], $result['code']);
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -573,12 +576,12 @@ class PayFast implements PaymentInterface
             $result = $this->otpVerificationService->completeTransactionFromPares($pares);
 
             if ($result['status']) {
-                return Utility::returnSuccess($result['data'], $result['code']);
+                return Utility::returnSuccess($result['data'], 'Transaction completed successfully', $result['code']);
             }
 
-            return Utility::returnError($result['message'], $result['code']);
+            return Utility::returnError($result['data'] ?? [], $result['message'], $result['code']);
         } catch (\Exception $e) {
-            return Utility::returnError($e->getMessage());
+            return Utility::returnError([], $e->getMessage());
         }
     }
 }

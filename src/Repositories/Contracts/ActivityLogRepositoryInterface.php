@@ -49,3 +49,4 @@ interface ActivityLogRepositoryInterface
     public function findByStatus(string $status);
 }
 
+

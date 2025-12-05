@@ -59,7 +59,7 @@ class ConfigLoader
         // Construct and return an options array with structured key-value pairs
         $options = [
             'api_mode' => $this->api_mode,
-            'api_url' => $this->getApiUrl(), // Assuming getApiUrl() is a method returning $this->apiUrl
+            'api_url' => $this->getApiUrl(), 
             'merchant_id' => $this->merchant_id,
             'store_id' => $this->store_id,
             'return_url' => $this->return_url,
@@ -93,7 +93,7 @@ class ConfigLoader
         if(property_exists($this, $name)) {
             return $this->$name;
         }
-        return Utility::returnError("Property ${name} does not exist.");
+        return Utility::returnError([], "Property ${name} does not exist.");
     }
 
     public function __set($name, $value) {
@@ -101,7 +101,7 @@ class ConfigLoader
             $this->$name = $value;
             return null;
         }
-        return Utility::returnError("Property ${name} does not exist.");
+        return Utility::returnError([], "Property ${name} does not exist.");
     }
 
     public function setApiUrl($api_url): void

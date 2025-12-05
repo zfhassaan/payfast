@@ -42,12 +42,15 @@ class Utility
      * Return Success Message as a common response.
      *
      * @param mixed $data
+     * @param string $message
      * @param mixed $code
      * @param int $status
      * @return JsonResponse
      */
-    public static function returnSuccess(mixed $data, mixed $code = [], int $status = Response::HTTP_OK): JsonResponse
+    public static function returnSuccess(mixed $data,string $message, mixed $code = [], int $status = Response::HTTP_OK): JsonResponse
     {
+        self::logData('Payfast', '========== Pay fast Success ==========', $message);
+
         return response()->json([
             'status' => true,
             'data' => $data,
@@ -65,14 +68,16 @@ class Utility
      * @return JsonResponse
      */
     public static function returnError(
+        mixed $data,
         mixed $message,
         string $code = '',
         int $status = Response::HTTP_INTERNAL_SERVER_ERROR
     ): JsonResponse {
-        self::logData('Payfast', '========== Pay fast ERROR ==========', $message);
+        self::logData('Payfast', '========== Pay fast ERROR ==========', $data);
 
         return response()->json([
             'status' => false,
+            'data' => $data,
             'message' => $message,
             'code' => $code,
         ], $status);

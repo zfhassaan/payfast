@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Facade;
  *
  * @see \zfhassaan\Payfast\PayFast
  */
-class PayFastFacade extends Facade
+class Payfast extends Facade
 {
     /**
      * Get the registered name of the component.
@@ -36,3 +36,4 @@ class PayFastFacade extends Facade
         return 'payfast';
     }
 }
+

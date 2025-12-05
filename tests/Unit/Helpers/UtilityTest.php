@@ -18,7 +18,7 @@ class UtilityTest extends TestCase
     public function testReturnSuccess(): void
     {
         $data = ['message' => 'Success'];
-        $response = Utility::returnSuccess($data, '00');
+        $response = Utility::returnSuccess($data, 'Operation completed successfully', '00');
 
         $this->assertInstanceOf(JsonResponse::class, $response);
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
@@ -41,7 +41,7 @@ class UtilityTest extends TestCase
             ->with('Payfast')
             ->andReturn($logChannel);
 
-        $response = Utility::returnError('Error message', 'ERROR_CODE', Response::HTTP_BAD_REQUEST);
+        $response = Utility::returnError([], 'Error message', 'ERROR_CODE', Response::HTTP_BAD_REQUEST);
 
         $this->assertInstanceOf(JsonResponse::class, $response);
         $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode());

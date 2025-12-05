@@ -65,3 +65,4 @@ class IPNLog extends Model
     ];
 }
 
+

@@ -26,3 +26,4 @@ interface HttpClientInterface
     public function post(string $url, string|array $data, array $headers = []): mixed;
 }
 
+

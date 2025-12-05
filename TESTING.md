@@ -246,3 +246,4 @@ Use `RefreshDatabase` trait for feature tests:
 use Illuminate\Foundation\Testing\RefreshDatabase;
 ```
 
+

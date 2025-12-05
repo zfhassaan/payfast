@@ -61,7 +61,7 @@ The PayFast package has been completely refactored to follow:
 - `Interfaces/PaymentInterface.php` - Updated with proper types
 - `Helpers/Utility.php` - PSR-12 compliant
 - `Models/ProcessPayment.php` - Added proper docblocks
-- `Facade/PayFastFacade.php` - Added method annotations
+- `Facade/Payfast.php` - Added method annotations
 - `Provider/PayFastServiceProvider.php` - Proper DI container setup
 
 ## Architecture Decision
@@ -206,7 +206,7 @@ src/
 ├── Models/
 │   └── ProcessPayment.php (updated)
 ├── Facade/
-│   └── PayFastFacade.php (updated)
+│   └── Payfast.php (updated)
 ├── Provider/
 │   └── PayFastServiceProvider.php (refactored)
 └── PayFast.php (completely refactored)
@@ -237,4 +237,5 @@ src/
 ✅ **PSR-12 Compliant**: Follows coding standards  
 ✅ **S.O.L.I.D**: Follows design principles  
 ✅ **Repository Pattern**: Clean data access layer  
+
 

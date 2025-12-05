@@ -177,3 +177,4 @@ pending → validated → otp_verified → completed
 - Type-safe with strict types enabled
 - Comprehensive error handling
 
+

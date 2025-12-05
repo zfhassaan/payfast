@@ -51,3 +51,4 @@ interface TransactionServiceInterface
     public function listInstrumentsWithBank(string|int $bankCode, string $authToken): array;
 }
 
+

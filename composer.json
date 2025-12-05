@@ -36,7 +36,7 @@
                 "zfhassaan\\Payfast\\Provider\\PayFastServiceProvider"
             ],
             "aliases": {
-                "payfast": "zfhassaan\\Payfast\\Facade\\PayfastFacade"
+                "payfast": "zfhassaan\\Payfast\\Facade\\Payfast"
             }
         }
     },

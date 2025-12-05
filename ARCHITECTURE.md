@@ -182,3 +182,4 @@ $payfast->getToken();
 
 All methods now follow camelCase naming (PSR-12 compliant).
 
+

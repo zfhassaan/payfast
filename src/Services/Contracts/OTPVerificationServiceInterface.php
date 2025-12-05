@@ -25,3 +25,4 @@ interface OTPVerificationServiceInterface
     public function completeTransactionFromPares(string $pares): array;
 }
 
+
