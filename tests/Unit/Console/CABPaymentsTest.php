@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Console;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
 use zfhassaan\Payfast\Console\CABPayments;
@@ -17,7 +17,7 @@ use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
 
 class CABPaymentsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private HttpClientInterface $httpClient;
     private ConfigService $configService;

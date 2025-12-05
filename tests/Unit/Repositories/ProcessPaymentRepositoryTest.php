@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Repositories;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\ProcessPaymentRepository;
 
 class ProcessPaymentRepositoryTest extends TestCase
 {
+    use RefreshDatabase;
     private ProcessPaymentRepository $repository;
 
     protected function setUp(): void

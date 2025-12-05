@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use zfhassaan\Payfast\Models\ProcessPayment;
 
 class ProcessPaymentTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function testStatusConstants(): void
     {
         $this->assertEquals('pending', ProcessPayment::STATUS_PENDING);

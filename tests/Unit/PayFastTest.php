@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Mockery;
 use Tests\TestCase;
@@ -15,17 +16,21 @@ use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\PayFast;
 use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
 use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 
 class PayFastTest extends TestCase
 {
+    use RefreshDatabase;
+
     private AuthenticationServiceInterface $authenticationService;
     private PaymentServiceInterface $paymentService;
     private TransactionServiceInterface $transactionService;
     private OTPVerificationServiceInterface $otpVerificationService;
     private ProcessPaymentRepositoryInterface $paymentRepository;
+    private IPNServiceInterface $ipnService;
     private PayFast $payFast;
 
     protected function setUp(): void
@@ -37,13 +42,15 @@ class PayFastTest extends TestCase
         $this->transactionService = Mockery::mock(TransactionServiceInterface::class);
         $this->otpVerificationService = Mockery::mock(OTPVerificationServiceInterface::class);
         $this->paymentRepository = Mockery::mock(ProcessPaymentRepositoryInterface::class);
+        $this->ipnService = Mockery::mock(IPNServiceInterface::class);
 
         $this->payFast = new PayFast(
             $this->authenticationService,
             $this->paymentService,
             $this->transactionService,
             $this->otpVerificationService,
-            $this->paymentRepository
+            $this->paymentRepository,
+            $this->ipnService
         );
     }
 
