@@ -30,7 +30,7 @@ use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
  * PayFast Payment Gateway Service
  *
  * This class provides a clean interface to interact with PayFast payment gateway APIs.
- * It follows S.O.L.I.D principles and uses service-based architecture with event-driven components.
+ * It uses service-based architecture with event-driven components.
  *
  * @package zfhassaan\Payfast
  */

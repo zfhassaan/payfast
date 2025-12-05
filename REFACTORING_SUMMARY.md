@@ -4,7 +4,6 @@
 
 The PayFast package has been completely refactored to follow:
 - ✅ **PSR-12** coding standards
-- ✅ **S.O.L.I.D** principles
 - ✅ **Repository Pattern**
 - ✅ **Service-Based Architecture** with Event-Driven components
 
@@ -90,7 +89,7 @@ See `ARCHITECTURE.md` for detailed explanation.
 - ✅ Consistent naming (camelCase for methods)
 - ✅ Proper visibility modifiers
 
-### S.O.L.I.D Principles
+### Design Principles
 
 **Single Responsibility:**
 - Each service has one job
@@ -235,7 +234,6 @@ src/
 ✅ **Extensibility**: Add features via events or services  
 ✅ **Type Safety**: Strong typing throughout  
 ✅ **PSR-12 Compliant**: Follows coding standards  
-✅ **S.O.L.I.D**: Follows design principles  
 ✅ **Repository Pattern**: Clean data access layer  
 
 
