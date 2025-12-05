@@ -65,7 +65,7 @@ and also in alias in `app/config.php`
 
 ```php 
   'aliases' => Facade::defaultAliases()->merge([
-        'Payfast' => \zfhassaan\Payfast\Payfastfacade::class,
+        'Payfast' => \zfhassaan\Payfast\Facade\Payfast::class,
     ])->toArray(),
 ```
 

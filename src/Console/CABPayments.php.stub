@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use zfhassaan\Payfast\Console\CABPayments as BaseCABPayments;
+
+/**
+ * Custom PayFast Payment Check Command
+ *
+ * This command extends the base PayFast command and can be customized
+ * to fit your application's specific requirements.
+ *
+ * To customize:
+ * 1. Modify the handle() method or add custom methods
+ * 2. Override email notification logic
+ * 3. Add custom logging or reporting
+ *
+ * @package App\Console\Commands
+ */
+class PayfastCheckPendingPayments extends BaseCABPayments
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'payfast:check-pending-payments 
+                            {--status= : Filter by payment status}
+                            {--limit=50 : Limit the number of records to process}
+                            {--no-email : Skip sending email notifications}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Check pending PayFast payments and update their status';
+
+    /**
+     * Execute the console command.
+     *
+     * You can override this method to add custom logic.
+     *
+     * @return int
+     */
+    public function handle(): int
+    {
+        // Add your custom logic here before calling parent
+        // For example: custom logging, notifications, etc.
+
+        return parent::handle();
+
+        // Add your custom logic here after calling parent
+        // For example: custom reporting, analytics, etc.
+    }
+}
+
+

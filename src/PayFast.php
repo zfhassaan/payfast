@@ -1,100 +1,114 @@
 <?php
 
+declare(strict_types=1);
+
 namespace zfhassaan\Payfast;
 
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Http;
-use Symfony\Component\HttpFoundation\Response as ResponseAlias;
-use zfhassaan\Payfast\Payment;
-use zfhassaan\Payfast\helper\Utility;
-use zfhassaan\Payfast\Models\ProcessPayment;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use zfhassaan\Payfast\DTOs\PaymentRequestDTO;
+use zfhassaan\Payfast\Events\PaymentCompleted;
+use zfhassaan\Payfast\Events\PaymentFailed;
+use zfhassaan\Payfast\Events\PaymentInitiated;
+use zfhassaan\Payfast\Events\PaymentValidated;
+use zfhassaan\Payfast\Events\TokenRefreshed;
+use zfhassaan\Payfast\Helpers\Utility;
+use zfhassaan\Payfast\Interfaces\PaymentInterface;
+use zfhassaan\Payfast\Models\ProcessPayment;
+use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
+use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 
 /**
- * This section contains the details of all APIs provided by PAYFAST. The merchants, acquirers and/or
- * aggregators could call these APIs. These API\’S are based on REST architecture and serve standard HTTP
- * codes for the response payload.
- * @method getip()
+ * PayFast Payment Gateway Service
+ *
+ * This class provides a clean interface to interact with PayFast payment gateway APIs.
+ * It follows S.O.L.I.D principles and uses service-based architecture with event-driven components.
+ *
+ * @package zfhassaan\Payfast
  */
-class PayFast extends Payment
+class PayFast implements PaymentInterface
 {
+    private ?string $authToken = null;
+
+    public function __construct(
+        private readonly AuthenticationServiceInterface $authenticationService,
+        private readonly PaymentServiceInterface $paymentService,
+        private readonly TransactionServiceInterface $transactionService,
+        private readonly OTPVerificationServiceInterface $otpVerificationService,
+        private readonly ProcessPaymentRepositoryInterface $paymentRepository,
+        private readonly IPNServiceInterface $ipnService
+    ) {
+    }
 
     /**
-     * Authentication Access Token:
-     * Following API will provide you the Authentication token, which will be used to call APIs. Merchant_id
-     * and Secured_key is mandatory to get the access token. This token will be sent on all the APIs with
-     * standard HTTP header ‘Authorization’.
-     *
-     * Request Url: /token
-     * Request Method: POST
+     * Get authentication token.
      *
      * @return JsonResponse
      */
-    public function GetToken(): JsonResponse
+    public function getToken(): JsonResponse
     {
-        try{
-            $options = [
-                "grant_type" => $this->grant_type,
-                "merchant_id" => $this->merchant_id,
-                "secured_key" => $this->secured_key,
-                "customer_ip" => $this->getip()
-            ];
+        try {
+            $response = $this->authenticationService->getToken();
 
-            $result = $this->getPayfastToken(http_build_query($options));
+            if (isset($response['code']) && $response['code'] === '00') {
+                $this->authToken = $response['data']['token'] ?? null;
 
-            if($result->code == '00') {
-                $this->setAuthToken(($handshake = $this->getHandShake()) ? $handshake->token : false);
-                return Utility::returnSuccess(($result),'00'.$result->code);
+                return Utility::returnSuccess($response['data'] ?? $response, 'Token retrieved successfully', $response['code']);
             }
-            return Utility::returnError($result);
-        } catch(\Exception $e)
-        {
-            return Utility::returnError($e->getMessage());
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to get token', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
     /**
-     * Any access token can be refreshed upon expiry. A refresh token is given along with original token.
-     * The RefreshToken can be used with the Token received from Payfast::GetToken().
-     * The result returns token with a refresh token, that can be passed to the Payfast::RefreshToken() to renew
-     * the token from payfast.
-     *
-     * curl -X POST \
-     * <BASE_URL>/refreshtoken \
-     * -H 'cache-control: no-cache' \
-     * -H 'content-type: application/x-www-form-urlencoded'
+     * Refresh authentication token.
      *
      * @param string $token
-     * @param String $refresh_token
-     * @return null|JsonResponse
+     * @param string $refreshToken
+     * @return JsonResponse|null
      */
-    public function RefreshToken(String $token,String $refresh_token): JsonResponse|null
+    public function refreshToken(string $token, string $refreshToken): ?JsonResponse
     {
+        try {
+            $this->authToken = $token;
+            $response = $this->authenticationService->refreshToken($token, $refreshToken);
 
-        $this->setAuthToken($token);
-        $this->setRefreshToken($refresh_token);
+            if (isset($response['code']) && $response['code'] === '00') {
+                $this->authToken = $response['data']['token'] ?? $token;
 
-        $postFields = http_build_query([
-            'grant_type' => 'refresh_token',
-            'refresh_token' => $refresh_token
-        ]);
+                Event::dispatch(new TokenRefreshed($token, $this->authToken));
 
-        $response = json_decode($this->PayfastPost('refreshtoken',$postFields));
+                return Utility::returnSuccess($response['data'] ?? $response, 'Token refreshed successfully', $response['code'] ?? '00');
+            }
 
-        return $response->code != '00' ? Utility::returnError($response, $response->code, ResponseAlias::HTTP_BAD_REQUEST) : Utility::returnSuccess($response,'00'.$response->code);
+            return Utility::returnError(
+                $response,
+                $response['message'] ?? 'Failed to refresh token',
+                $response['code'] ?? '',
+                ResponseAlias::HTTP_BAD_REQUEST
+            );
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
     }
 
     /**
-     * This API will be used if you choose to send OTP to registered mobile number of the customer
-     * that respective Issuer/Bank. This API will be used if you choose to send OTP to registered mobile number of the
-     * customer with that respective Issuer/Bank.
+     * Get OTP screen for customer validation.
      *
-     * @param $data
+     * @param array<string, mixed> $data
      * @return JsonResponse
      */
-    public function GetOTPScreen($data): JsonResponse
+    public function getOTPScreen(array $data): JsonResponse
     {
         $validator = Validator::make($data, [
             'orderNumber' => 'required',
@@ -105,7 +119,7 @@ class PayFast extends Payment
             'expiry_month' => 'required',
             'expiry_year' => 'required',
             'cvv' => 'required',
-        ],[
+        ], [
             'orderNumber.required' => 'Order Number is Required',
             'transactionAmount.required' => 'Transaction Amount is required',
             'customerMobileNo.required' => 'Customer Mobile Number is required',
@@ -113,242 +127,492 @@ class PayFast extends Payment
             'cardNumber.required' => 'Card Number is required',
             'expiry_month.required' => 'Expiry Month is required',
             'expiry_year.required' => 'Expiry Year is required',
-            'cvv.required' => 'CVV is a required Field.'
+            'cvv.required' => 'CVV is a required Field.',
         ]);
 
-        if ($validator->fails()) return Utility::returnError($validator->errors()->first(), 'VALIDATION_ERROR', Response::HTTP_BAD_REQUEST);
-
-        $token = json_decode(self::GetToken()->getContent())->data->token;
-
-        self::setAuthToken($token);
-
-        $url = 'customer/validate';
-
-        $postFields = [
-            'basket_id' =>$data['orderNumber'],
-            'txnamt' => $data['transactionAmount'],
-            'customer_mobile_no'=> $data['customerMobileNo'],
-            'customer_email_address' => $data['customer_email'],
-            'account_type_id' => '1',
-            'card_number'=>$data['cardNumber'],
-            'expiry_month' => $data['expiry_month'],
-            'expiry_year' => $data['expiry_year'],
-            'cvv' => $data['cvv'],
-            'order_date' => \Illuminate\Support\Carbon::today()->toDateString(),
-            'data_3ds_callback_url' => self::getreturn_url(),
-            'currency_code' => 'PKR'
-        ];
-
-        $response = json_decode($this->PayfastPost($url,http_build_query($postFields)));
-
-        if($response->code != 00) {
-            return Utility::returnError(json_decode(Utility::PayfastErrorCodes($response->code)->getContent())->error_description,$response->code,Response::HTTP_BAD_REQUEST);
+        if ($validator->fails()) {
+            return Utility::returnError(
+                $validator->errors(),
+                $validator->errors()->first(),
+                'VALIDATION_ERROR',
+                Response::HTTP_BAD_REQUEST
+            );
         }
-        $options = [
-            'token' => json_decode(self::getAuthToken())->token,
-            'data_3ds_secureid' => json_decode($response)->customer_validation->data_3ds_secureid,
-            'transaction_id' => json_decode($response)->customer_validation->transaction_id,
-            'payload' => json_encode(['customer_validate'=>json_decode($response)->customer_validation,'user_request'=>$data]),
-            'requestData' => json_encode($data)
-        ];
 
-        $db = ProcessPayments::create($options);
-        Utility::LogData('Payfast','Database Storage Check', $db);
+        try {
+            // Get token first
+            $tokenResponse = $this->getToken();
+            $tokenData = json_decode($tokenResponse->getContent(), true);
 
-        return Utility::returnSuccess(['token'=>self::getAuthToken(),'customer_validate' => $response]);
+            if (!isset($tokenData['data']['token'])) {
+                return Utility::returnError($tokenData, 'Failed to get authentication token', 'AUTH_ERROR');
+            }
+
+            $this->authToken = $tokenData['data']['token'];
+
+            // Create DTO from request data
+            $dto = PaymentRequestDTO::fromArray($data);
+
+            // Validate customer
+            $validationResponse = $this->paymentService->validateCustomer($dto);
+
+            if (!isset($validationResponse['code']) || $validationResponse['code'] !== '00') {
+                $errorCode = $validationResponse['code'] ?? 'UNKNOWN';
+                $errorResponse = Utility::payfastErrorCodes($errorCode);
+                $errorData = json_decode($errorResponse->getContent(), true);
+
+                Event::dispatch(new PaymentFailed($data, $errorCode, $errorData['error_description'] ?? ''));
+
+                return Utility::returnError(
+                    $errorData,
+                    $errorData['error_description'] ?? 'Validation failed',
+                    $errorCode,
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            // Store payment in database with validated status
+            $paymentData = [
+                'token' => $this->authToken,
+                'orderNo' => $dto->orderNumber,
+                'data_3ds_secureid' => $validationResponse['data_3ds_secureid'] ?? '',
+                'transaction_id' => $validationResponse['transaction_id'] ?? '',
+                'status' => ProcessPayment::STATUS_VALIDATED,
+                'payment_method' => ProcessPayment::METHOD_CARD,
+                'payload' => json_encode([
+                    'customer_validate' => $validationResponse,
+                    'user_request' => $data,
+                ]),
+                'requestData' => json_encode($data),
+            ];
+
+            $payment = $this->paymentRepository->create($paymentData);
+
+            // Dispatch payment validated event
+            Event::dispatch(new PaymentValidated($data, $validationResponse));
+
+            return Utility::returnSuccess([
+                'token' => $this->authToken,
+                'customer_validate' => $validationResponse,
+                'transaction_id' => $validationResponse['transaction_id'] ?? '',
+                'payment_id' => $payment->id,
+                'redirect_url' => $validationResponse['redirect_url'] ?? null, // OTP screen URL if provided by PayFast
+            ], 'OTP screen retrieved successfully', $validationResponse['code'] ?? '00');
+        } catch (\Exception $e) {
+            Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
+
+            return Utility::returnError([], $e->getMessage());
+        }
     }
 
-
     /**
-     * This API will provide the available list of issuer/bank.
-     * curl -X GET \
-     * <BASE_URL>/list/banks \
-     * -H 'cache-control: no-cache' \
-     * -H 'content-type: application/x-www-form-urlencoded'
-     * The above command returns following JSON structure:
+     * List available banks.
      *
      * @return JsonResponse
      */
-    public function ListBanks(): JsonResponse
+    public function listBanks(): JsonResponse
     {
-        $uri = '/list/banks';
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
 
-        $response = json_decode(self::PayfastGet($uri));
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
 
-        if($response->banks != null || $response->banks->isNotEmpty()) {
-            return Utility::returnSuccess($response->banks);
+            $response = $this->transactionService->listBanks($this->authToken);
+
+            if (!empty($response['banks'])) {
+                return Utility::returnSuccess($response['banks'], 'Banks listed successfully', '00');
+            }
+
+            return Utility::returnError($response, 'Error Generating Banks List');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage(), 'Internal Server Error');
         }
-        return Utility::returnError($response);
     }
 
     /**
-     * This API will provide the Payment type (or account type, e.g. Account, Wallet or Debit Card) based on selected issuer/bank.
-     * curl -X GET \
-     * '<BASE_URL>/list/instruments?bank_code=<bank code>' \
-     * -H 'cache-control: no-cache' \
-     * -H 'content-type: application/x-www-form-urlencoded'
+     * List instruments with bank code.
      *
-     * e.g. bank_code=12
-     *
-     * @param string $code
-     * @return bool|JsonResponse
+     * @param string|array $code
+     * @return JsonResponse|bool
      */
-    public function ListInstrumentsWithBank(string $code): bool|JsonResponse
+    public function listInstrumentsWithBank(string|array $code): JsonResponse|bool
     {
-        $uri = '/list/instruments?bank_code='.$code;
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
 
-        $response = json_decode(self::PayfastGet($uri));
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
 
-        if($response->bankInstruments != null || $response->code == 00) {
-            return Utility::returnSuccess($response->bankInstruments);
+            $bankCode = is_array($code) ? ($code['bank_code'] ?? '') : $code;
+            $response = $this->transactionService->listInstrumentsWithBank($bankCode, $this->authToken);
+
+            if (isset($response['bankInstruments']) || (isset($response['code']) && $response['code'] === '00')) {
+                return Utility::returnSuccess($response['bankInstruments'] ?? $response, 'Bank instruments retrieved successfully', $response['code'] ?? '00');
+            }
+
+            return Utility::returnError($response, 'Failed to retrieve bank instruments');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
         }
-        return Utility::returnError($response);
     }
 
     /**
-     * This API will fetch transaction details with respect to the transaction id or the basket id (provided by
-     * merchant).
+     * Get transaction details by transaction ID.
+     *
      * @param string $transactionId
      * @return JsonResponse
      */
-    public function GetTransactionDetails(string $transactionId): JsonResponse
+    public function getTransactionDetails(string $transactionId): JsonResponse
     {
-        $uri = '/transaction/'.$transactionId;
-        $response = json_decode(self::PayfastGet($uri));
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
 
-        if($response->bankInstruments != null || $response->code == 00) {
-            return Utility::returnSuccess($response->bankInstruments);
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->transactionService->getTransactionDetails($transactionId, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Transaction details retrieved successfully', $response['code']);
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to retrieve transaction details', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
         }
-
-        return Utility::returnError($response);
     }
 
     /**
-     * This API will allow merchant to initiate the request for transaction refund in case of any dispute in the transaction.
+     * Get transaction details by basket ID.
      *
-     * @param $data
+     * @param string $basketId
+     * @return JsonResponse
+     */
+    public function getTransactionDetailsByBasketId(string $basketId): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->transactionService->getTransactionDetailsByBasketId($basketId, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Transaction details retrieved successfully', $response['code']);
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to retrieve transaction details', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Request a refund for a transaction.
+     *
+     * @param array<string, mixed> $data
      * @return bool|string
      */
-    public function RefundTransactionRequest($data)
+    public function refundTransactionRequest(array $data): bool|string
     {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
 
-        $uri = '/transaction/refund/'.$data['transactionId'];
-        $fields = [
-            'transaction_id' => $data['transactionId'],
-            'txnamt' => $data['transactionAmount'],
-            'refund_reason' => $data['refund_reason'],
-            'customer_ip' => $this->getip()
-        ];
+            if (!$this->authToken) {
+                return json_encode(['error' => 'Authentication token is required']);
+            }
 
-        $response = json_decode(self::PayfastPost($uri,http_build_query($fields)));
-        return $response;
+            $response = $this->transactionService->refundTransaction($data, $this->authToken);
+
+            return json_encode($response);
+        } catch (\Exception $e) {
+            return json_encode(['error' => $e->getMessage()]);
+        }
     }
 
-
-    public function PayWithEasyPaisa($data){
-
+    /**
+     * Pay with EasyPaisa wallet.
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function payWithEasyPaisa(array $data): mixed
+    {
         $data['order_date'] = Carbon::today()->toDateString();
         $data['bank_code'] = 13;
-        return $this->ValidateWalletTransaction($data);
+
+        return $this->validateWalletTransaction($data);
     }
 
-    public function PayWithUPaisa($data)
+    /**
+     * Pay with UPaisa wallet.
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function payWithUPaisa(array $data): mixed
     {
         $data['order_date'] = Carbon::today()->toDateString();
         $data['bank_code'] = 14;
-        return $this->ValidateWalletTransaction($data);
+
+        return $this->validateWalletTransaction($data);
     }
 
     /**
-     * @param $data
+     * Validate wallet transaction.
+     *
+     * @param array<string, mixed> $data
+     * @return string|bool
+     */
+    public function validateWalletTransaction(array $data): string|bool
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return json_encode(['error' => 'Authentication token is required']);
+            }
+
+            $bankCode = (int) ($data['bank_code'] ?? 0);
+            $response = $this->paymentService->validateWalletTransaction($data, $bankCode, 4);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                $data['token'] = $this->authToken;
+                $data['transaction_id'] = $response['transaction_id'] ?? '';
+
+                // Store payment in database with validated status
+                $paymentMethod = ProcessPayment::METHOD_EASYPAISA;
+                if (isset($data['bank_code'])) {
+                    $paymentMethod = match ((int) $data['bank_code']) {
+                        13 => ProcessPayment::METHOD_EASYPAISA,
+                        14 => ProcessPayment::METHOD_UPAISA,
+                        default => ProcessPayment::METHOD_EASYPAISA,
+                    };
+                }
+
+                $paymentData = [
+                    'token' => $this->authToken,
+                    'orderNo' => $data['basket_id'] ?? $data['orderNumber'] ?? '',
+                    'data_3ds_secureid' => $response['data_3ds_secureid'] ?? '',
+                    'transaction_id' => $response['transaction_id'] ?? '',
+                    'status' => ProcessPayment::STATUS_VALIDATED,
+                    'payment_method' => $paymentMethod,
+                    'payload' => json_encode([
+                        'customer_validate' => $response,
+                        'user_request' => $data,
+                    ]),
+                    'requestData' => json_encode($data),
+                ];
+
+                $payment = $this->paymentRepository->create($paymentData);
+
+                Event::dispatch(new PaymentValidated($data, $response));
+
+                // For wallet payments, we can complete immediately or wait for OTP
+                // Return payment info for OTP screen if needed
+                return json_encode([
+                    'status' => true,
+                    'code' => '00',
+                    'data' => [
+                        'transaction_id' => $response['transaction_id'] ?? '',
+                        'payment_id' => $payment->id,
+                        'redirect_url' => $response['redirect_url'] ?? null,
+                    ],
+                ]);
+            }
+
+            return json_encode($response);
+        } catch (\Exception $e) {
+            return json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Initiate wallet transaction.
+     *
+     * @param array<string, mixed> $data
      * @return bool|string
      */
-    public function ValidateWalletTransaction($data): string|bool
+    public function walletTransactionInitiate(array $data): bool|string
     {
-        $data['account_type_id'] = 4;
-        $url = 'customer/validate';
-        $field_string = http_build_query($data);
-        $response = self::PayfastPost($url, $field_string);
+        try {
+            if (!$this->authToken) {
+                return json_encode(['error' => 'Authentication token is required']);
+            }
 
-        if (json_decode($response)->code == "00") {
-            $data['token'] = $this->getAuthToken();
-            $data['transaction_id'] = json_decode($response)->transaction_id;
-            return $this->wallet_transaction($data);
+            $response = $this->paymentService->initiateWalletTransaction($data, $this->authToken);
+
+            Event::dispatch(new PaymentCompleted($data, $response));
+
+            return json_encode($response);
+        } catch (\Exception $e) {
+            Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
+
+            return json_encode(['error' => $e->getMessage()]);
         }
-        return $response;
     }
 
     /**
-     * Mobile Wallet Initiate Transaction
-     */
-    public function wallet_transaction($data) {
-
-        $field_string = http_build_query($data);
-        $response = self::PayfastPost('transaction',$data);
-
-        return $response;
-    }
-
-    /**
-     * Initiate Transaction
+     * Initiate a transaction.
      *
-     * This API will initiate payment/transaction request without token. e.g. Direct Transaction.
-     * This function will be used for credit/debit card transaction.
+     * @param array<string, mixed> $data
+     * @return bool|string
      */
-    public function initiate_transaction($data)
+    public function initiateTransaction(array $data): bool|string
     {
-        $res = [
-            "user_id"=> $data['user_id'],
-            "basket_id"=> $data['basket_id'],
-            "txnamt" => $data['txnamt'],
-            "customer_mobile_no" => $data['customer_mobile_no'],
-            "customer_email_address"=> $data['customer_email_address'],
-            "order_date"=> Carbon::today()->toDateString(),
-            "transaction_id"=> $data['transaction_id'],
-            "card_number"=> $data['card_number'],
-            "expiry_year"=> $data['expiry_year'],
-            "expiry_month"=> $data['expiry_month'],
-            "cvv"=>$data['cvv'],
-            "data_3ds_pares"=> $data['data_3ds_pares'],
-            "data_3ds_secureid"=> $data['data_3ds_secureid']
-        ];
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
 
-        return $this->__initiate_transaction($res);
+            if (!$this->authToken) {
+                return json_encode(['error' => 'Authentication token is required']);
+            }
+
+            Event::dispatch(new PaymentInitiated($data, []));
+
+            $dto = PaymentRequestDTO::fromArray($data);
+            $response = $this->paymentService->initiateTransaction($dto, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                Event::dispatch(new PaymentCompleted($data, $response));
+
+                return json_encode($response);
+            }
+
+            Event::dispatch(new PaymentFailed($data, $response['code'] ?? 'UNKNOWN', $response['message'] ?? ''));
+
+            return json_encode($response);
+        } catch (\Exception $e) {
+            Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
+
+            return json_encode(['error' => $e->getMessage()]);
+        }
     }
 
     /**
-     * Initiate Transaction Extracted
+     * Get current authentication token.
      *
+     * @return string|null
      */
-    public function __initiate_transaction($data)
+    public function getAuthToken(): ?string
     {
-        // dd($data);
-        $field_string = http_build_query($data);
-
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->getApiUrl().'transaction',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $field_string,
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/x-www-form-urlencoded',
-                'Authorization: Bearer: '.$this->getAuthToken()
-            ),
-        ));
-        $response = curl_exec($curl);
-        curl_close($curl);
-        return $response;
+        return $this->authToken;
     }
 
+    /**
+     * Set authentication token.
+     *
+     * @param string $token
+     * @return void
+     */
+    public function setAuthToken(string $token): void
+    {
+        $this->authToken = $token;
+    }
 
+    /**
+     * Verify OTP and store pares in database.
+     *
+     * @param string $transactionId
+     * @param string $otp
+     * @param string $pares
+     * @return JsonResponse
+     */
+    public function verifyOTPAndStorePares(string $transactionId, string $otp, string $pares): JsonResponse
+    {
+        try {
+            $result = $this->otpVerificationService->verifyOTPAndStorePares($transactionId, $otp, $pares);
 
+            if ($result['status']) {
+                return Utility::returnSuccess($result['data'], 'OTP verified and pares stored successfully', $result['code']);
+            }
 
+            return Utility::returnError($result['data'] ?? [], $result['message'], $result['code']);
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
 
+    /**
+     * Complete transaction from callback using pares.
+     *
+     * @param string $pares
+     * @return JsonResponse
+     */
+    public function completeTransactionFromPares(string $pares): JsonResponse
+    {
+        try {
+            $result = $this->otpVerificationService->completeTransactionFromPares($pares);
 
+            if ($result['status']) {
+                return Utility::returnSuccess($result['data'], 'Transaction completed successfully', $result['code']);
+            }
+
+            return Utility::returnError($result['data'] ?? [], $result['message'], $result['code']);
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle IPN (Instant Payment Notification) webhook from PayFast.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function handleIPN(array $data): JsonResponse
+    {
+        try {
+            $result = $this->ipnService->processIPN($data);
+
+            if ($result['status']) {
+                return Utility::returnSuccess(
+                    $result['data'] ?? [],
+                    $result['message'] ?? 'IPN processed successfully',
+                    $result['code'] ?? '00'
+                );
+            }
+
+            return Utility::returnError(
+                $result['data'] ?? [],
+                $result['message'] ?? 'Failed to process IPN',
+                $result['code'] ?? 'IPN_ERROR'
+            );
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage(), 'IPN_EXCEPTION');
+        }
+    }
 }
