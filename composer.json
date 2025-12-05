@@ -1,7 +1,14 @@
 {
     "name": "zfhassaan/payfast",
     "description": "Laravel 9 Package for Payfast Payment Gateway",
-    "keywords": ["payfast", "php", "payment", "laravel", "api","docs"],
+    "keywords": [
+        "payfast",
+        "php",
+        "payment",
+        "laravel",
+        "api",
+        "docs"
+    ],
     "type": "library",
     "require": {
         "php": "^7.4|^8.0",
@@ -40,5 +47,5 @@
             }
         }
     },
-    "minimum-stability": "dev-dev"
+    "minimum-stability": "stable"
 }
