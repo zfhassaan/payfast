@@ -21,7 +21,7 @@
 - ✅ Tracks transaction status, amount, currency, details
 
 ### 4. Email Notification System
-- ✅ `EmailNotificationService` with interface (SOLID - Dependency Inversion)
+- ✅ `EmailNotificationService` with interface (Dependency Inversion)
 - ✅ Sends payment status notifications to customers
 - ✅ Sends payment completion emails to customers
 - ✅ Sends admin notification emails
@@ -51,7 +51,7 @@
 - ✅ Config file (publishable to `config/payfast.php`)
 - ✅ Migrations (publishable to `database/migrations`)
 
-### 8. SOLID Principles Implementation
+### 8. Architecture Implementation
 
 #### Single Responsibility Principle (SRP)
 - ✅ Each service has one responsibility:
@@ -291,7 +291,7 @@ composer install
 php artisan test --filter PayFast
 ```
 
-## SOLID Principles Checklist
+## Architecture Principles Checklist
 
 - ✅ **Single Responsibility**: Each class has one reason to change
 - ✅ **Open/Closed**: Open for extension, closed for modification

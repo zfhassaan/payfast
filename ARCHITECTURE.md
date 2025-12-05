@@ -118,7 +118,7 @@ Events are used for:
 - Doesn't block main payment flow
 - Allows extensibility without modifying core code
 
-## S.O.L.I.D Principles Applied
+## Design Principles Applied
 
 ### Single Responsibility Principle (SRP)
 - Each class has one reason to change
