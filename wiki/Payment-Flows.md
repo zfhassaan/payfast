@@ -4,10 +4,12 @@ This document explains the complete payment flows supported by the PayFast packa
 
 ## Overview
 
-The PayFast package supports two main payment methods:
+The PayFast package supports multiple payment methods:
 
 1. **Direct Checkout** - PCI DSS compliant card payments
+   - See [Understanding the Direct Checkout Process](Understanding-the-Direct-Checkout-Process) for detailed implementation
 2. **Hosted Checkout** - Redirect-based payment processing
+   - See [Understanding the Hosted Checkout Process for Payfast](Understanding-the-Hosted-Checkout-Process-for-Payfast) for detailed implementation
 3. **Mobile Wallets** - EasyPaisa, UPaisa, JazzCash
 
 ## Card Payment Flow
