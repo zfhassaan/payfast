@@ -1,10 +1,18 @@
-# Payment Flow with OTP Verification and 3DS Pares
+# Payment Flows
+
+This document explains the complete payment flows supported by the PayFast package, including card payments, mobile wallet payments, and the OTP verification process.
 
 ## Overview
 
-This document explains the complete payment flow with payment holding, OTP verification, and 3DS pares callback handling.
+The PayFast package supports two main payment methods:
 
-## Payment Flow Diagram
+1. **Direct Checkout** - PCI DSS compliant card payments
+2. **Hosted Checkout** - Redirect-based payment processing
+3. **Mobile Wallets** - EasyPaisa, UPaisa, JazzCash
+
+## Card Payment Flow
+
+### Complete Flow Diagram
 
 ```
 1. Customer Initiates Payment
@@ -28,9 +36,9 @@ This document explains the complete payment flow with payment holding, OTP verif
 10. Payment Completed (status: completed)
 ```
 
-## Step-by-Step Implementation
+### Step-by-Step Implementation
 
-### 1. Customer Validation (Card Payment)
+#### Step 1: Customer Validation
 
 ```php
 use zfhassaan\Payfast\Facades\PayFast;
@@ -64,7 +72,7 @@ if ($result['status']) {
 }
 ```
 
-### 2. OTP Verification Screen
+#### Step 2: OTP Verification Screen
 
 Create a route and controller for OTP verification:
 
@@ -101,9 +109,7 @@ public function verifyOTP(Request $request)
 }
 ```
 
-### 3. PayFast Callback Handler
-
-Create a callback route that PayFast will call with the pares:
+#### Step 3: PayFast Callback Handler
 
 ```php
 // routes/web.php
@@ -141,7 +147,7 @@ public function handleCallback(Request $request)
 }
 ```
 
-## Wallet Payment Flow (EasyPaisa, JazzCash, UPaisa)
+## Mobile Wallet Payment Flow
 
 ### EasyPaisa Payment
 
@@ -151,7 +157,7 @@ $paymentData = [
     'txnamt' => 1000.00,
     'customer_mobile_no' => '03001234567',
     'customer_email_address' => 'customer@example.com',
-    // ... other required fields
+    'order_date' => now()->toDateString(),
 ];
 
 $response = PayFast::payWithEasyPaisa($paymentData);
@@ -179,40 +185,115 @@ $response = PayFast::payWithUPaisa($paymentData);
 
 ## Payment Status Tracking
 
-The `ProcessPayment` model tracks payment status:
+The `ProcessPayment` model tracks payment status through the following states:
 
-- `pending` - Initial state
-- `validated` - Customer validated, waiting for OTP
-- `otp_verified` - OTP verified, pares stored, waiting for callback
-- `completed` - Transaction completed successfully
-- `failed` - Transaction failed
-- `cancelled` - Payment cancelled
+### Status Constants
+
+```php
+ProcessPayment::STATUS_PENDING      // Initial state
+ProcessPayment::STATUS_VALIDATED    // Customer validated, waiting for OTP
+ProcessPayment::STATUS_OTP_VERIFIED // OTP verified, pares stored, waiting for callback
+ProcessPayment::STATUS_COMPLETED   // Transaction completed successfully
+ProcessPayment::STATUS_FAILED      // Transaction failed
+ProcessPayment::STATUS_CANCELLED    // Payment cancelled
+```
+
+### Status Flow
+
+```
+pending → validated → otp_verified → completed
+                ↓
+            failed/cancelled
+```
+
+### Checking Payment Status
+
+```php
+use zfhassaan\Payfast\Models\ProcessPayment;
+
+$payment = ProcessPayment::where('transaction_id', 'TXN123456')->first();
+
+if ($payment->isCompleted()) {
+    // Payment completed
+}
+
+if ($payment->isFailed()) {
+    // Payment failed
+}
+
+if ($payment->isOtpVerified()) {
+    // OTP verified, waiting for callback
+}
+```
 
 ## Database Schema
 
+The `payfast_process_payments_table` stores payment records:
+
 ```php
 payfast_process_payments_table:
-- id
+- id (primary key)
 - uid (UUID)
-- token
-- orderNo
-- data_3ds_secureid
-- data_3ds_pares (stored after OTP verification)
-- transaction_id
+- token (authentication token)
+- orderNo (order number/basket ID)
+- data_3ds_secureid (3DS secure ID)
+- data_3ds_pares (3DS pares - stored after OTP verification)
+- transaction_id (PayFast transaction ID)
 - status (enum: pending, validated, otp_verified, completed, failed, cancelled)
 - payment_method (card, easypaisa, jazzcash, upaisa)
-- payload (JSON)
-- requestData (JSON)
-- otp_verified_at
-- completed_at
+- payload (JSON - stores validation response and user request)
+- requestData (JSON - original request data)
+- otp_verified_at (timestamp)
+- completed_at (timestamp)
 - created_at
 - updated_at
-- deleted_at
+- deleted_at (soft delete)
 ```
 
-## Console Command
+## Payment Methods
 
-Check pending payments:
+### Card Payment
+
+```php
+ProcessPayment::METHOD_CARD
+```
+
+- Requires card number, expiry, CVV
+- Uses 3DS authentication
+- Requires OTP verification
+
+### EasyPaisa
+
+```php
+ProcessPayment::METHOD_EASYPAISA
+```
+
+- Bank code: 13
+- Mobile wallet payment
+- Requires mobile number
+
+### UPaisa
+
+```php
+ProcessPayment::METHOD_UPAISA
+```
+
+- Bank code: 14
+- Mobile wallet payment
+- Requires mobile number
+
+### JazzCash
+
+```php
+ProcessPayment::METHOD_JAZZCASH
+```
+
+- Mobile wallet payment
+- Requires mobile number
+
+## Console Command for Payment Checking
+
+Check pending payments using the console command:
 
 ```bash
 # Check all pending and validated payments
@@ -223,9 +304,12 @@ php artisan payfast:check-pending-payments --status=otp_verified
 
 # Limit results
 php artisan payfast:check-pending-payments --limit=10
+
+# Skip email notifications
+php artisan payfast:check-pending-payments --no-email
 ```
 
-## Example Controller
+## Complete Example Controller
 
 ```php
 <?php
@@ -344,6 +428,9 @@ try {
 }
 ```
 
+## Next Steps
 
-
+- [API Reference](API-Reference.md) - Explore all available methods
+- [IPN Handling](IPN-Handling.md) - Set up webhook notifications
+- [Events and Listeners](Events-and-Listeners.md) - Understand event system
 
