@@ -199,18 +199,27 @@ class ProcessPayment extends Model
      */
     protected static function newFactory()
     {
-        // Use fully qualified class name as string for backward compatibility
-        // The class_exists check with autoload=true ensures the class is autoloaded
-        $factoryClass = 'zfhassaan\\Payfast\\Database\\Factories\\ProcessPaymentFactory';
+        // Use string class name to avoid fatal error if class not yet autoloaded
+        $factoryClass = '\\zfhassaan\\Payfast\\Database\\Factories\\ProcessPaymentFactory';
         
-        // Trigger autoloader if class not yet loaded (backward compatibility fix)
+        // Try autoloader first
         if (!class_exists($factoryClass, true)) {
-            throw new \RuntimeException(
-                "Factory class {$factoryClass} not found. Please ensure composer autoload is up to date."
-            );
+            // Fallback: load factory file directly if autoloader fails (backward compatibility)
+            $factoryPath = __DIR__ . '/../database/factories/ProcessPaymentFactory.php';
+            if (file_exists($factoryPath)) {
+                require_once $factoryPath;
+            }
+            
+            // Verify class exists after manual load
+            if (!class_exists($factoryClass, false)) {
+                throw new \RuntimeException(
+                    "Factory class {$factoryClass} not found. " .
+                    "Expected file: {$factoryPath}"
+                );
+            }
         }
         
-        // Call static method on string class name (PHP 7.0+)
+        // Call static method using variable class name (PHP 7.0+)
         return $factoryClass::new();
     }
 }
