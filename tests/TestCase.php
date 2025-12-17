@@ -17,29 +17,14 @@ abstract class TestCase extends OrchestraTestCase
      *
      * @return void
      */
+    /**
+     * Setup the test environment.
+     *
+     * @return void
+     */
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Load migrations - RefreshDatabase will handle running them
-        // Try multiple paths to support both package development and published tests
-        $possiblePaths = [
-            __DIR__ . '/../src/database/migrations', // Package development
-            base_path('vendor/zfhassaan/payfast/src/database/migrations'), // Published from vendor
-            base_path('packages/zfhassaan/payfast/src/database/migrations'), // Local package
-        ];
-        
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                $this->loadMigrationsFrom($path);
-                break;
-            }
-        }
-        
-        // Run migrations if not already run
-        if (!$this->app['migrator']->repositoryExists()) {
-            $this->artisan('migrate', ['--database' => 'testbench'])->run();
-        }
 
         // Set test configuration
         $this->app['config']->set('payfast.api_url', 'https://api.payfast.test');
@@ -54,6 +39,27 @@ abstract class TestCase extends OrchestraTestCase
     }
 
     /**
+     * Define database migrations.
+     *
+     * @return void
+     */
+    protected function defineDatabaseMigrations(): void
+    {
+        $possiblePaths = [
+            __DIR__ . '/../src/database/migrations', // Package development
+            base_path('vendor/zfhassaan/payfast/src/database/migrations'), // Published from vendor
+            base_path('packages/zfhassaan/payfast/src/database/migrations'), // Local package
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                $this->loadMigrationsFrom($path);
+                break;
+            }
+        }
+    }
+
+    /**
      * Define environment setup.
      *
      * @param \Illuminate\Foundation\Application $app
@@ -64,6 +70,13 @@ abstract class TestCase extends OrchestraTestCase
         // Setup default database to use sqlite :memory:
         $app['config']->set('database.default', 'testbench');
         $app['config']->set('database.connections.testbench', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        
+        // Ensure standard sqlite connection is also configured as fallback
+        $app['config']->set('database.connections.sqlite', [
             'driver' => 'sqlite',
             'database' => ':memory:',
             'prefix' => '',

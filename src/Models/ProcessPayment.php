@@ -7,7 +7,6 @@ namespace zfhassaan\Payfast\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use zfhassaan\Payfast\Database\Factories\ProcessPaymentFactory;
 
 /**
  * ProcessPayment Model
@@ -200,6 +199,18 @@ class ProcessPayment extends Model
      */
     protected static function newFactory()
     {
-        return \zfhassaan\Payfast\Database\Factories\ProcessPaymentFactory::new();
+        // Use fully qualified class name as string for backward compatibility
+        // The class_exists check with autoload=true ensures the class is autoloaded
+        $factoryClass = 'zfhassaan\\Payfast\\Database\\Factories\\ProcessPaymentFactory';
+        
+        // Trigger autoloader if class not yet loaded (backward compatibility fix)
+        if (!class_exists($factoryClass, true)) {
+            throw new \RuntimeException(
+                "Factory class {$factoryClass} not found. Please ensure composer autoload is up to date."
+            );
+        }
+        
+        // Call static method on string class name (PHP 7.0+)
+        return $factoryClass::new();
     }
 }
