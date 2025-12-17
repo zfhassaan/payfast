@@ -8,7 +8,7 @@
 [![MIT Licensed](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![Total Downloads](https://img.shields.io/packagist/dt/zfhassaan/payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 [![Code Style](https://img.shields.io/badge/code%20style-pint-orange?style=flat-square)](https://github.com/zfhassaan/payfast)
-[![Tests](https://img.shields.io/github/actions/workflow/status/zfhassaan/payfast/tests.yml?branch=master&style=flat-square&label=tests)](https://github.com/zfhassaan/payfast/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/zfhassaan/payfast/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/zfhassaan/payfast/actions/workflows/tests.yml)
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fzfhassaan%2Fpayfast&count_bg=%2379C83D&title_bg=%23555555&icon=webmoney.svg&icon_color=%23E7E7E7&title=Hits&edge_flat=false)](https://hits.seeyoufarm.com)
 
 <h4> Disclaimer </h4>
