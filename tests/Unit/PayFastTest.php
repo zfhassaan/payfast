@@ -19,6 +19,7 @@ use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\SubscriptionServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 
 class PayFastTest extends TestCase
@@ -27,6 +28,7 @@ class PayFastTest extends TestCase
 
     private AuthenticationServiceInterface $authenticationService;
     private PaymentServiceInterface $paymentService;
+    private SubscriptionServiceInterface $subscriptionService;
     private TransactionServiceInterface $transactionService;
     private OTPVerificationServiceInterface $otpVerificationService;
     private ProcessPaymentRepositoryInterface $paymentRepository;
@@ -39,6 +41,7 @@ class PayFastTest extends TestCase
 
         $this->authenticationService = Mockery::mock(AuthenticationServiceInterface::class);
         $this->paymentService = Mockery::mock(PaymentServiceInterface::class);
+        $this->subscriptionService = Mockery::mock(SubscriptionServiceInterface::class);
         $this->transactionService = Mockery::mock(TransactionServiceInterface::class);
         $this->otpVerificationService = Mockery::mock(OTPVerificationServiceInterface::class);
         $this->paymentRepository = Mockery::mock(ProcessPaymentRepositoryInterface::class);
@@ -47,6 +50,7 @@ class PayFastTest extends TestCase
         $this->payFast = new PayFast(
             $this->authenticationService,
             $this->paymentService,
+            $this->subscriptionService,
             $this->transactionService,
             $this->otpVerificationService,
             $this->paymentRepository,
@@ -251,6 +255,170 @@ class PayFastTest extends TestCase
 
         $this->assertTrue($result['status']);
         $this->assertEquals('TXN-123', $result['data']['transaction_id']);
+    }
+
+    public function testVoidTransaction(): void
+    {
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $this->transactionService
+            ->shouldReceive('voidTransaction')
+            ->once()
+            ->with('TXN-123', 'test_token_123')
+            ->andReturn(['code' => '00', 'message' => 'Voided']);
+
+        $response = $this->payFast->voidTransaction('TXN-123');
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertTrue($result['status']);
+        $this->assertEquals('00', $result['code']);
+    }
+
+    public function testGetSettlementStatus(): void
+    {
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $this->transactionService
+            ->shouldReceive('getSettlementStatus')
+            ->once()
+            ->with('TXN-123', 'test_token_123')
+            ->andReturn(['code' => '00', 'status' => 'settled']);
+
+        $response = $this->payFast->getSettlementStatus('TXN-123');
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertTrue($result['status']);
+        $this->assertEquals('00', $result['code']);
+    }
+
+    public function testCreateSubscription(): void
+    {
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $data = [
+            'orderNumber' => 'SUB-123',
+            'transactionAmount' => 100.0,
+            'customer_email' => 'test@example.com',
+            'customerMobileNo' => '03001234567',
+            'planId' => 'PLAN-1',
+        ];
+
+        $this->subscriptionService
+            ->shouldReceive('createSubscription')
+            ->once()
+            ->with(Mockery::type(\zfhassaan\Payfast\DTOs\SubscriptionRequestDTO::class), 'test_token_123')
+            ->andReturn(['code' => '00', 'message' => 'Success']);
+
+        $response = $this->payFast->createSubscription($data);
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertTrue($result['status']);
+        $this->assertEquals('00', $result['code']);
+    }
+
+    public function testInitiateTransactionReturnsJsonResponse(): void
+    {
+        Event::fake();
+
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $data = [
+            'orderNumber' => 'ORD-123',
+            'transactionAmount' => 1000.00,
+            'customerMobileNo' => '03001234567',
+            'customer_email' => 'test@example.com',
+            'cardNumber' => '4111111111111111',
+            'expiry_month' => '12',
+            'expiry_year' => '2025',
+            'cvv' => '123',
+            'transaction_id' => 'TXN-123',
+            'data_3ds_pares' => 'pares',
+            'data_3ds_secureid' => '3DS',
+        ];
+
+        $this->paymentService
+            ->shouldReceive('initiateTransaction')
+            ->once()
+            ->andReturn(['code' => '00', 'message' => 'Success']);
+
+        $response = $this->payFast->initiateTransaction($data);
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertInstanceOf(\Illuminate\Http\JsonResponse::class, $response);
+        $this->assertTrue($result['status']);
+    }
+
+    public function testRefundTransactionRequestReturnsJsonResponse(): void
+    {
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $this->transactionService
+            ->shouldReceive('refundTransaction')
+            ->once()
+            ->andReturn(['code' => '00', 'message' => 'Refunded']);
+
+        $response = $this->payFast->refundTransactionRequest(['transactionId' => 'TXN-123']);
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertInstanceOf(\Illuminate\Http\JsonResponse::class, $response);
+        $this->assertTrue($result['status']);
+    }
+
+    public function testPayWithEasyPaisaReturnsJsonResponse(): void
+    {
+        \Illuminate\Support\Facades\Event::fake();
+
+        $this->authenticationService
+            ->shouldReceive('getToken')
+            ->once()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'test_token_123'],
+            ]);
+
+        $this->paymentService
+            ->shouldReceive('validateWalletTransaction')
+            ->once()
+            ->andReturn(['code' => '00', 'transaction_id' => 'TXN-123']);
+
+        $payment = ProcessPayment::factory()->make();
+        $this->paymentRepository->shouldReceive('create')->andReturn($payment);
+
+        $response = $this->payFast->payWithEasyPaisa(['customerMobileNo' => '03001234567']);
+        $result = json_decode($response->getContent(), true);
+
+        $this->assertInstanceOf(\Illuminate\Http\JsonResponse::class, $response);
+        $this->assertTrue($result['status']);
     }
 
     protected function tearDown(): void

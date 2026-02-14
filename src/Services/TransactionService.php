@@ -102,11 +102,7 @@ class TransactionService implements TransactionServiceInterface
     }
 
     /**
-     * List instruments with bank code.
-     *
-     * @param string|int $bankCode
-     * @param string $authToken
-     * @return array<string, mixed>
+     * @inheritDoc
      */
     public function listInstrumentsWithBank(string|int $bankCode, string $authToken): array
     {
@@ -119,6 +115,34 @@ class TransactionService implements TransactionServiceInterface
         $response = $this->httpClient->get($url, $headers);
 
         return $response ?? [];
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function voidTransaction(string $transactionId, string $authToken): array
+    {
+        $url = $this->configService->getApiUrl() . 'transaction/void/' . $transactionId;
+        $headers = [
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Authorization' => 'Bearer ' . $authToken,
+        ];
+
+        return $this->httpClient->post($url, [], $headers) ?? [];
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getSettlementStatus(string $transactionId, string $authToken): array
+    {
+        $url = $this->configService->getApiUrl() . 'transaction/settlement/' . $transactionId;
+        $headers = [
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Authorization' => 'Bearer ' . $authToken,
+        ];
+
+        return $this->httpClient->get($url, $headers) ?? [];
     }
 }
 

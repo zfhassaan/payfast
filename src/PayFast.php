@@ -24,6 +24,7 @@ use zfhassaan\Payfast\Services\Contracts\AuthenticationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\SubscriptionServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 
 /**
@@ -41,6 +42,7 @@ class PayFast implements PaymentInterface
     public function __construct(
         private readonly AuthenticationServiceInterface $authenticationService,
         private readonly PaymentServiceInterface $paymentService,
+        private readonly SubscriptionServiceInterface $subscriptionService,
         private readonly TransactionServiceInterface $transactionService,
         private readonly OTPVerificationServiceInterface $otpVerificationService,
         private readonly ProcessPaymentRepositoryInterface $paymentRepository,
@@ -239,9 +241,9 @@ class PayFast implements PaymentInterface
      * List instruments with bank code.
      *
      * @param string|array $code
-     * @return JsonResponse|bool
+     * @return JsonResponse
      */
-    public function listInstrumentsWithBank(string|array $code): JsonResponse|bool
+    public function listInstrumentsWithBank(string|array $code): JsonResponse
     {
         try {
             if (!$this->authToken) {
@@ -333,9 +335,9 @@ class PayFast implements PaymentInterface
      * Request a refund for a transaction.
      *
      * @param array<string, mixed> $data
-     * @return bool|string
+     * @return JsonResponse
      */
-    public function refundTransactionRequest(array $data): bool|string
+    public function refundTransactionRequest(array $data): JsonResponse
     {
         try {
             if (!$this->authToken) {
@@ -345,14 +347,80 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return json_encode(['error' => 'Authentication token is required']);
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $response = $this->transactionService->refundTransaction($data, $this->authToken);
 
-            return json_encode($response);
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Refund processed successfully', $response['code']);
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to process refund', $response['code'] ?? '');
         } catch (\Exception $e) {
-            return json_encode(['error' => $e->getMessage()]);
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Void a non-settled transaction.
+     *
+     * @param string $transactionId
+     * @return JsonResponse
+     */
+    public function voidTransaction(string $transactionId): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->transactionService->voidTransaction($transactionId, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Transaction voided successfully', $response['code']);
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to void transaction', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Get settlement status of a transaction.
+     *
+     * @param string $transactionId
+     * @return JsonResponse
+     */
+    public function getSettlementStatus(string $transactionId): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->transactionService->getSettlementStatus($transactionId, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Settlement status retrieved successfully', $response['code']);
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to retrieve settlement status', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -360,9 +428,9 @@ class PayFast implements PaymentInterface
      * Pay with EasyPaisa wallet.
      *
      * @param array<string, mixed> $data
-     * @return mixed
+     * @return JsonResponse
      */
-    public function payWithEasyPaisa(array $data): mixed
+    public function payWithEasyPaisa(array $data): JsonResponse
     {
         $data['order_date'] = Carbon::today()->toDateString();
         $data['bank_code'] = 13;
@@ -374,9 +442,9 @@ class PayFast implements PaymentInterface
      * Pay with UPaisa wallet.
      *
      * @param array<string, mixed> $data
-     * @return mixed
+     * @return JsonResponse
      */
-    public function payWithUPaisa(array $data): mixed
+    public function payWithUPaisa(array $data): JsonResponse
     {
         $data['order_date'] = Carbon::today()->toDateString();
         $data['bank_code'] = 14;
@@ -388,9 +456,9 @@ class PayFast implements PaymentInterface
      * Validate wallet transaction.
      *
      * @param array<string, mixed> $data
-     * @return string|bool
+     * @return JsonResponse
      */
-    public function validateWalletTransaction(array $data): string|bool
+    public function validateWalletTransaction(array $data): JsonResponse
     {
         try {
             if (!$this->authToken) {
@@ -400,7 +468,7 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return json_encode(['error' => 'Authentication token is required']);
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $bankCode = (int) ($data['bank_code'] ?? 0);
@@ -440,20 +508,16 @@ class PayFast implements PaymentInterface
 
                 // For wallet payments, we can complete immediately or wait for OTP
                 // Return payment info for OTP screen if needed
-                return json_encode([
-                    'status' => true,
-                    'code' => '00',
-                    'data' => [
-                        'transaction_id' => $response['transaction_id'] ?? '',
-                        'payment_id' => $payment->id,
-                        'redirect_url' => $response['redirect_url'] ?? null,
-                    ],
-                ]);
+                return Utility::returnSuccess([
+                    'transaction_id' => $response['transaction_id'] ?? '',
+                    'payment_id' => $payment->id,
+                    'redirect_url' => $response['redirect_url'] ?? null,
+                ], 'Wallet transaction validated successfully', '00');
             }
 
-            return json_encode($response);
+            return Utility::returnError($response, $response['message'] ?? 'Wallet validation failed', $response['code'] ?? '');
         } catch (\Exception $e) {
-            return json_encode(['error' => $e->getMessage()]);
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -461,24 +525,27 @@ class PayFast implements PaymentInterface
      * Initiate wallet transaction.
      *
      * @param array<string, mixed> $data
-     * @return bool|string
+     * @return JsonResponse
      */
-    public function walletTransactionInitiate(array $data): bool|string
+    public function walletTransactionInitiate(array $data): JsonResponse
     {
         try {
             if (!$this->authToken) {
-                return json_encode(['error' => 'Authentication token is required']);
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             $response = $this->paymentService->initiateWalletTransaction($data, $this->authToken);
 
-            Event::dispatch(new PaymentCompleted($data, $response));
+            if (isset($response['code']) && $response['code'] === '00') {
+                Event::dispatch(new PaymentCompleted($data, $response));
+                return Utility::returnSuccess($response, 'Wallet transaction initiated successfully', '00');
+            }
 
-            return json_encode($response);
+            Event::dispatch(new PaymentFailed($data, $response['code'] ?? 'UNKNOWN', $response['message'] ?? ''));
+            return Utility::returnError($response, $response['message'] ?? 'Failed to initiate wallet transaction', $response['code'] ?? '');
         } catch (\Exception $e) {
             Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
-
-            return json_encode(['error' => $e->getMessage()]);
+            return Utility::returnError([], $e->getMessage());
         }
     }
 
@@ -486,9 +553,9 @@ class PayFast implements PaymentInterface
      * Initiate a transaction.
      *
      * @param array<string, mixed> $data
-     * @return bool|string
+     * @return JsonResponse
      */
-    public function initiateTransaction(array $data): bool|string
+    public function initiateTransaction(array $data): JsonResponse
     {
         try {
             if (!$this->authToken) {
@@ -498,7 +565,7 @@ class PayFast implements PaymentInterface
             }
 
             if (!$this->authToken) {
-                return json_encode(['error' => 'Authentication token is required']);
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
             Event::dispatch(new PaymentInitiated($data, []));
@@ -509,16 +576,120 @@ class PayFast implements PaymentInterface
             if (isset($response['code']) && $response['code'] === '00') {
                 Event::dispatch(new PaymentCompleted($data, $response));
 
-                return json_encode($response);
+                return Utility::returnSuccess($response, 'Transaction initiated successfully', '00');
             }
 
             Event::dispatch(new PaymentFailed($data, $response['code'] ?? 'UNKNOWN', $response['message'] ?? ''));
 
-            return json_encode($response);
+            return Utility::returnError($response, $response['message'] ?? 'Failed to initiate transaction', $response['code'] ?? '');
         } catch (\Exception $e) {
             Event::dispatch(new PaymentFailed($data, 'EXCEPTION', $e->getMessage()));
 
-            return json_encode(['error' => $e->getMessage()]);
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a new subscription.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function createSubscription(array $data): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $dto = new \zfhassaan\Payfast\DTOs\SubscriptionRequestDTO(
+                $data['orderNumber'] ?? '',
+                (float) ($data['transactionAmount'] ?? 0),
+                $data['customer_email'] ?? '',
+                $data['customerMobileNo'] ?? '',
+                $data['planId'] ?? '',
+                $data['frequency'] ?? 'monthly',
+                $data['iterations'] ?? null
+            );
+
+            $response = $this->subscriptionService->createSubscription($dto, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Subscription created successfully', '00');
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to create subscription', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Update an existing subscription.
+     *
+     * @param string $subscriptionId
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function updateSubscription(string $subscriptionId, array $data): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->subscriptionService->updateSubscription($subscriptionId, $data, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Subscription updated successfully', '00');
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to update subscription', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Cancel a subscription.
+     *
+     * @param string $subscriptionId
+     * @return JsonResponse
+     */
+    public function cancelSubscription(string $subscriptionId): JsonResponse
+    {
+        try {
+            if (!$this->authToken) {
+                $tokenResponse = $this->getToken();
+                $tokenData = json_decode($tokenResponse->getContent(), true);
+                $this->authToken = $tokenData['data']['token'] ?? null;
+            }
+
+            if (!$this->authToken) {
+                return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
+            }
+
+            $response = $this->subscriptionService->cancelSubscription($subscriptionId, $this->authToken);
+
+            if (isset($response['code']) && $response['code'] === '00') {
+                return Utility::returnSuccess($response, 'Subscription cancelled successfully', '00');
+            }
+
+            return Utility::returnError($response, $response['message'] ?? 'Failed to cancel subscription', $response['code'] ?? '');
+        } catch (\Exception $e) {
+            return Utility::returnError([], $e->getMessage());
         }
     }
 

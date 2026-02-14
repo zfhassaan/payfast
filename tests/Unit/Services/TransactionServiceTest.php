@@ -64,7 +64,7 @@ class TransactionServiceTest extends TestCase
             ->shouldReceive('get')
             ->once()
             ->with(
-                Mockery::pattern('/transaction\/basket_idORD-123$/'),
+                Mockery::pattern('/transaction\/basket_id\/ORD-123$/'),
                 Mockery::type('array')
             )
             ->andReturn($expectedResponse);
@@ -150,6 +150,39 @@ class TransactionServiceTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('bankInstruments', $result);
+    }
+
+    public function testVoidTransactionReturnsSuccessResponse(): void
+    {
+        $this->httpClient
+            ->shouldReceive('post')
+            ->once()
+            ->with(
+                Mockery::pattern('/transaction\/void\/TXN-123$/'),
+                [],
+                Mockery::type('array')
+            )
+            ->andReturn(['code' => '00', 'message' => 'Voided']);
+
+        $result = $this->transactionService->voidTransaction('TXN-123', 'auth_token');
+
+        $this->assertEquals('00', $result['code']);
+    }
+
+    public function testGetSettlementStatusReturnsSuccessResponse(): void
+    {
+        $this->httpClient
+            ->shouldReceive('get')
+            ->once()
+            ->with(
+                Mockery::pattern('/transaction\/settlement\/TXN-123$/'),
+                Mockery::type('array')
+            )
+            ->andReturn(['code' => '00', 'status' => 'settled']);
+
+        $result = $this->transactionService->getSettlementStatus('TXN-123', 'auth_token');
+
+        $this->assertEquals('00', $result['code']);
     }
 
     protected function tearDown(): void

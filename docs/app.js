@@ -14,6 +14,7 @@ createApp({
       selectedResultIndex: 0,
       contributors: [],
       loadingContributors: true,
+      showDisclaimer: true,
     };
   },
   computed: {
@@ -184,10 +185,15 @@ createApp({
 
       // Fetch contributors
       this.fetchContributors();
+
+      // Check disclaimer status
+      this.checkDisclaimerStatus();
     } catch (error) {
       console.error("Error in mounted hook:", error);
       // Ensure we still try to fetch contributors even if something else fails
       this.fetchContributors();
+      // Check disclaimer status even if there's an error
+      this.checkDisclaimerStatus();
     }
   },
   beforeUnmount() {
@@ -227,6 +233,14 @@ createApp({
           }
         }
       }
+    },
+    dismissDisclaimer() {
+      this.showDisclaimer = false;
+      localStorage.setItem('disclaimer_dismissed', 'true');
+    },
+    checkDisclaimerStatus() {
+      const dismissed = localStorage.getItem('disclaimer_dismissed');
+      this.showDisclaimer = dismissed !== 'true';
     },
     toggleSearch() {
       this.searchOpen = !this.searchOpen;

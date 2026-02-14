@@ -49,6 +49,24 @@ interface TransactionServiceInterface
      * @return array<string, mixed>
      */
     public function listInstrumentsWithBank(string|int $bankCode, string $authToken): array;
+
+    /**
+     * Void a non-settled transaction.
+     *
+     * @param string $transactionId
+     * @param string $authToken
+     * @return array<string, mixed>
+     */
+    public function voidTransaction(string $transactionId, string $authToken): array;
+
+    /**
+     * Get settlement status of a transaction.
+     *
+     * @param string $transactionId
+     * @param string $authToken
+     * @return array<string, mixed>
+     */
+    public function getSettlementStatus(string $transactionId, string $authToken): array;
 }
 
 

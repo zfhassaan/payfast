@@ -20,12 +20,14 @@ use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
 use zfhassaan\Payfast\Services\Contracts\IPNServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\OTPVerificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
+use zfhassaan\Payfast\Services\Contracts\SubscriptionServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\TransactionServiceInterface;
 use zfhassaan\Payfast\Services\EmailNotificationService;
 use zfhassaan\Payfast\Services\HttpClientService;
 use zfhassaan\Payfast\Services\IPNService;
 use zfhassaan\Payfast\Services\OTPVerificationService;
 use zfhassaan\Payfast\Services\PaymentService;
+use zfhassaan\Payfast\Services\SubscriptionService;
 use zfhassaan\Payfast\Services\TransactionService;
 
 class PayFastServiceProvider extends ServiceProvider
@@ -108,6 +110,7 @@ class PayFastServiceProvider extends ServiceProvider
         $this->app->singleton(HttpClientInterface::class, HttpClientService::class);
         $this->app->singleton(AuthenticationServiceInterface::class, AuthenticationService::class);
         $this->app->singleton(PaymentServiceInterface::class, PaymentService::class);
+        $this->app->singleton(SubscriptionServiceInterface::class, SubscriptionService::class);
         $this->app->singleton(TransactionServiceInterface::class, TransactionService::class);
         $this->app->singleton(OTPVerificationServiceInterface::class, OTPVerificationService::class);
 
@@ -127,6 +130,7 @@ class PayFastServiceProvider extends ServiceProvider
             return new PayFast(
                 $app->make(AuthenticationServiceInterface::class),
                 $app->make(PaymentServiceInterface::class),
+                $app->make(SubscriptionServiceInterface::class),
                 $app->make(TransactionServiceInterface::class),
                 $app->make(OTPVerificationServiceInterface::class),
                 $app->make(ProcessPaymentRepositoryInterface::class),
