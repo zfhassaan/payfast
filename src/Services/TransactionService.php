@@ -44,7 +44,7 @@ class TransactionService implements TransactionServiceInterface
      */
     public function getTransactionDetailsByBasketId(string $basketId, string $authToken): array
     {
-        $url = $this->configService->getApiUrl() . 'transaction/basket_id' . $basketId;
+        $url = $this->configService->getApiUrl() . 'transaction/basket_id/' . $basketId;
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',
             'Authorization' => 'Bearer ' . $authToken,

@@ -754,15 +754,32 @@ $response = PayFast::getToken();
 
 **Returns**: \`JsonResponse\`
 
-**Example**:
-\`\`\`php
-$response = PayFast::getToken();
-$data = json_decode($response->getContent(), true);
-
-if ($data['status'] && $data['code'] === '00') {
-    $token = $data['data']['token'];
+**Response Format**:
+\`\`\`json
+{
+    "status": true,
+    "data": {
+        "token": "abc123...",
+        "expires_in": 3600
+    },
+    "message": "Token retrieved successfully",
+    "code": "00"
 }
 \`\`\`
+
+### refreshToken()
+
+Refresh an existing authentication token.
+
+\`\`\`php
+$response = PayFast::refreshToken($token, $refreshToken);
+\`\`\`
+
+**Parameters**:
+- \`$token\` (string) - Current authentication token
+- \`$refreshToken\` (string) - Refresh token
+
+**Returns**: \`JsonResponse|null\`
 
 ## Payment Methods
 
@@ -790,6 +807,22 @@ $paymentData = [
 
 **Returns**: \`JsonResponse\`
 
+**Response Format**:
+\`\`\`json
+{
+    "status": true,
+    "data": {
+        "token": "abc123...",
+        "customer_validate": {...},
+        "transaction_id": "TXN123456",
+        "payment_id": 1,
+        "redirect_url": "https://..."
+    },
+    "message": "OTP screen retrieved successfully",
+    "code": "00"
+}
+\`\`\`
+
 ### verifyOTPAndStorePares()
 
 Verify OTP and store 3DS pares.
@@ -799,9 +832,11 @@ $response = PayFast::verifyOTPAndStorePares($transactionId, $otp, $pares);
 \`\`\`
 
 **Parameters**:
+\`\`\`php
 - \`$transactionId\` (string) - Transaction ID from getOTPScreen
 - \`$otp\` (string) - OTP entered by customer
 - \`$pares\` (string) - 3DS pares from PayFast
+\`\`\`
 
 **Returns**: \`JsonResponse\`
 
@@ -814,9 +849,41 @@ $response = PayFast::completeTransactionFromPares($pares);
 \`\`\`
 
 **Parameters**:
+\`\`\`php
 - \`$pares\` (string) - 3DS pares from PayFast callback
+\`\`\`
 
 **Returns**: \`JsonResponse\`
+
+### initiateTransaction()
+
+Initiate a transaction directly (without OTP flow).
+
+\`\`\`php
+$response = PayFast::initiateTransaction($data);
+\`\`\`
+
+**Parameters**:
+\`\`\`php
+$data = [
+    'orderNumber' => 'ORD-12345',
+    'transactionAmount' => 1000.00,
+    // ... other payment data
+];
+\`\`\`
+
+**Returns**: \`string|bool\` (JSON string)
+
+**Response Format**:
+\`\`\`json
+{
+    "code": "00",
+    "message": "Transaction initiated successfully",
+    "transaction_id": "TXN123456",
+    "redirect_url": "https://...",
+    "data_3ds_secureid": "..."
+}
+\`\`\`
 
 ## Mobile Wallet Methods
 
@@ -828,6 +895,21 @@ Process payment with EasyPaisa wallet.
 $response = PayFast::payWithEasyPaisa($paymentData);
 \`\`\`
 
+**Returns**: \`mixed\` (JSON string)
+
+**Response Format**:
+\`\`\`json
+{
+    "status": true,
+    "code": "00",
+    "data": {
+        "transaction_id": "TXN123456",
+        "payment_id": 1,
+        "redirect_url": "https://..."
+    }
+}
+\`\`\`
+
 ### payWithUPaisa()
 
 Process payment with UPaisa wallet.
@@ -835,6 +917,8 @@ Process payment with UPaisa wallet.
 \`\`\`php
 $response = PayFast::payWithUPaisa($paymentData);
 \`\`\`
+
+**Returns**: \`mixed\` (JSON string)
 
 ## Transaction Query Methods
 
@@ -847,9 +931,76 @@ $response = PayFast::getTransactionDetails($transactionId);
 \`\`\`
 
 **Parameters**:
+\`\`\`php
 - \`$transactionId\` (string) - PayFast transaction ID
+\`\`\`
 
 **Returns**: \`JsonResponse\`
+
+**Response Format**:
+\`\`\`json
+{
+    "status": true,
+    "data": {
+        "transaction_id": "TXN123456",
+        "status": "completed",
+        "amount": 1000.00
+    },
+    "message": "Transaction details retrieved successfully",
+    "code": "00"
+}
+\`\`\`
+
+### getTransactionDetailsByBasketId()
+
+Get transaction details by basket/order ID.
+
+\`\`\`php
+$response = PayFast::getTransactionDetailsByBasketId($basketId);
+\`\`\`
+
+**Returns**: \`JsonResponse\`
+
+### refundTransactionRequest()
+
+Request a refund for a transaction.
+
+\`\`\`php
+$response = PayFast::refundTransactionRequest($data);
+\`\`\`
+
+**Returns**: \`string|bool\` (JSON string)
+
+**Response Format**:
+\`\`\`json
+{
+    "code": "00",
+    "message": "Refund processed successfully",
+    "refund_id": "REF123456"
+}
+\`\`\`
+
+## Bank and Instrument Methods
+
+### listBanks()
+
+List available banks.
+
+\`\`\`php
+$response = PayFast::listBanks();
+\`\`\`
+
+**Returns**: \`JsonResponse\`
+
+### listInstrumentsWithBank()
+
+List payment instruments for a specific bank.
+
+\`\`\`php
+$response = PayFast::listInstrumentsWithBank($bankCode);
+\`\`\`
+
+**Returns**: \`JsonResponse|bool\`
 
 ## IPN Methods
 
@@ -861,11 +1012,22 @@ Handle Instant Payment Notification webhook from PayFast.
 $response = PayFast::handleIPN($ipnData);
 \`\`\`
 
-## Next Steps
+**Returns**: \`JsonResponse\`
 
-- [Payment Flows](Payment-Flows.md) - Understand payment processing
-- [IPN Handling](IPN-Handling.md) - Set up webhook notifications
-- [Models and Database](Models-and-Database.md) - Database schema`;
+**Response Format**:
+\`\`\`json
+{
+    "status": true,
+    "data": {
+        "ipn_log_id": 123,
+        "transaction_id": "TXN123456",
+        "order_no": "ORD-12345",
+        "payment_updated": true
+    },
+    "message": "IPN processed successfully",
+    "code": "00"
+}
+\`\`\``;
       }
 
       // Payment Flows
