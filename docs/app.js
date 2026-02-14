@@ -14,6 +14,8 @@ createApp({
       selectedResultIndex: 0,
       contributors: [],
       loadingContributors: true,
+      issues: [],
+      loadingIssues: true,
       showDisclaimer: true,
       sidebarOpen: false,
     };
@@ -192,12 +194,17 @@ createApp({
       // Fetch contributors
       this.fetchContributors();
 
+      // Fetch issues
+      this.fetchIssues();
+
       // Check disclaimer status
       this.checkDisclaimerStatus();
     } catch (error) {
       console.error("Error in mounted hook:", error);
       // Ensure we still try to fetch contributors even if something else fails
       this.fetchContributors();
+      // Ensure we still try to fetch issues even if something else fails
+      this.fetchIssues();
       // Check disclaimer status even if there's an error
       this.checkDisclaimerStatus();
     }
@@ -369,6 +376,58 @@ createApp({
       } finally {
         this.loadingContributors = false;
       }
+    },
+    async fetchIssues() {
+      try {
+        const response = await fetch(
+          "https://api.github.com/repos/zfhassaan/payfast/issues?state=all&per_page=10&sort=updated"
+        );
+        if (response.ok) {
+          const issuesList = await response.json();
+          
+          // Format issues data
+          this.issues = issuesList.map(issue => ({
+            id: issue.id,
+            number: issue.number,
+            title: issue.title,
+            body: issue.body,
+            state: issue.state,
+            html_url: issue.html_url,
+            created_at: issue.created_at,
+            updated_at: issue.updated_at,
+            user: {
+              login: issue.user.login,
+              avatar_url: issue.user.avatar_url,
+              html_url: issue.user.html_url
+            },
+            labels: issue.labels || [],
+            comments: issue.comments,
+            pull_request: issue.pull_request ? true : false
+          }));
+        } else {
+          throw new Error("Failed to fetch issues list");
+        }
+      } catch (error) {
+        console.error("Failed to fetch issues:", error);
+        // Fallback to empty array if fetch fails
+        this.issues = [];
+      } finally {
+        this.loadingIssues = false;
+      }
+    },
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+      return `${Math.floor(diffDays / 365)} years ago`;
     },
     async loadDocumentation() {
       // Try to load documentation from content folder (for web server)

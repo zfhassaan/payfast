@@ -103,7 +103,8 @@
           </a>
         </div>
 
-        <button class="mobile-menu-toggle" @click="mobileMenuOpen = !mobileMenuOpen" :class="{ active: mobileMenuOpen }">
+        <button class="mobile-menu-toggle" @click="mobileMenuOpen = !mobileMenuOpen"
+          :class="{ active: mobileMenuOpen }">
           <span></span>
           <span></span>
           <span></span>
@@ -371,6 +372,102 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
             </div>
           </div>
         </section>
+
+        <!-- Issues Section -->
+        <section class="issues-section">
+          <div class="container">
+            <h2 class="section-title">GitHub Issues</h2>
+            <p class="issues-subtitle">
+              Track and view all issues, bug reports, and feature requests from the GitHub repository.
+            </p>
+
+            <div v-if="loadingIssues" class="issues-list">
+              <div v-for="i in 5" :key="i" class="issue-card skeleton-card">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-content">
+                  <div class="skeleton-text title"></div>
+                  <div class="skeleton-text body"></div>
+                  <div class="skeleton-text meta"></div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="issues.length > 0" class="issues-list">
+              <a v-for="issue in issues" :key="issue.id" :href="issue.html_url" target="_blank"
+                rel="noopener noreferrer" class="issue-card" :class="{'is-pull-request': issue.pull_request}">
+                <div class="issue-header">
+                  <div class="issue-state" :class="'state-' + issue.state">
+                    <svg v-if="issue.state === 'open'" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                      <circle cx="6" cy="6" r="5" />
+                    </svg>
+                    <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                      <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                    {{ issue.state === 'open' ? 'Open' : 'Closed' }}
+                  </div>
+                  <div class="issue-meta">
+                    <span class="issue-number">#{{ issue.number }}</span>
+                    <span class="issue-date">{{ formatDate(issue.updated_at) }}</span>
+                  </div>
+                </div>
+                <h3 class="issue-title">{{ issue.title }}</h3>
+                <div class="issue-body" v-if="issue.body">
+                  {{ issue.body.substring(0, 150) }}{{ issue.body.length > 150 ? '...' : '' }}
+                </div>
+                <div class="issue-footer">
+                  <div class="issue-author">
+                    <img :src="issue.user.avatar_url" :alt="issue.user.login" class="issue-avatar" />
+                    <span>@{{ issue.user.login }}</span>
+                  </div>
+                  <div class="issue-stats">
+                    <span v-if="issue.comments > 0" class="issue-comments">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                          d="M2.75 2.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.75.75 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25H2.75zM1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.457 1.457 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25v-7.5z" />
+                      </svg>
+                      {{ issue.comments }}
+                    </span>
+                    <span v-if="issue.pull_request" class="issue-pr-badge">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                          d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.25 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5 0a2.25 2.25 0 1 1 3 2.122v6.256a2.251 2.25 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 6.5 3.25Zm4.75 0a2.25 2.25 0 1 1 3 2.122v6.256a2.251 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 0 1 1.5-2.122ZM1.5 7.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm5 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm4.75 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
+                      </svg>
+                      PR
+                    </span>
+                  </div>
+                </div>
+                <div v-if="issue.labels.length > 0" class="issue-labels">
+                  <span v-for="label in issue.labels" :key="label.id" class="issue-label"
+                    :style="{'background-color': '#' + label.color + '20', 'color': '#' + label.color, 'border-color': '#' + label.color}">
+                    {{ label.name }}
+                  </span>
+                </div>
+              </a>
+            </div>
+
+            <div v-else class="issues-empty">
+              <div class="empty-icon">🎉</div>
+              <div class="empty-text">No issues found</div>
+              <p class="empty-subtext">Great job! There are currently no open or closed issues.</p>
+              <a href="https://github.com/zfhassaan/payfast/issues/new" target="_blank" rel="noopener noreferrer"
+                class="btn btn-primary">
+                Create New Issue
+              </a>
+            </div>
+
+            <div class="issues-footer">
+              <a href="https://github.com/zfhassaan/payfast/issues" target="_blank" rel="noopener noreferrer"
+                class="view-all-issues">
+                View All Issues on GitHub
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- Documentation Pages -->
@@ -468,7 +565,8 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
           <div class="footer-section">
             <h4>PayFast Payment Gateway</h4>
             <p>PayFast Payment Gateway is a comprehensive Laravel package for seamless integration with PayFast payment
-              gateway APIs, supporting Direct Checkout, Hosted Checkout, Subscriptions, Refunds, Voids, Settlement checks, and mobile wallet payments.</p>
+              gateway APIs, supporting Direct Checkout, Hosted Checkout, Subscriptions, Refunds, Voids, Settlement
+              checks, and mobile wallet payments.</p>
           </div>
           <div class="footer-section">
             <h4>Documentation</h4>
