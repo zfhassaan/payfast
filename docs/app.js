@@ -364,13 +364,16 @@ createApp({
     async fetchIssues() {
       try {
         const response = await fetch(
-          "https://api.github.com/repos/zfhassaan/payfast/issues?state=all&per_page=3&sort=updated"
+          "https://api.github.com/repos/zfhassaan/payfast/issues?state=all&per_page=10&sort=updated"
         );
         if (response.ok) {
           const issuesList = await response.json();
 
-          // Format issues data
-          this.issues = issuesList.map(issue => ({
+          // Filter out pull requests - only keep actual issues
+          const actualIssues = issuesList.filter(issue => !issue.pull_request);
+
+          // Format issues data and limit to 3 most recent
+          this.issues = actualIssues.slice(0, 3).map(issue => ({
             id: issue.id,
             number: issue.number,
             title: issue.title,
@@ -386,7 +389,7 @@ createApp({
             },
             labels: issue.labels || [],
             comments: issue.comments,
-            pull_request: issue.pull_request ? true : false
+            pull_request: false
           }));
         } else {
           throw new Error("Failed to fetch issues list");
