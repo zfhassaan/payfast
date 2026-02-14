@@ -377,8 +377,22 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
       <div v-else class="page doc-page">
         <div class="container">
           <div class="doc-layout">
+            <!-- Sidebar Toggle (Mobile) -->
+            <button class="sidebar-toggle" @click="toggleSidebar" :class="{active: sidebarOpen}">
+              <svg v-if="!sidebarOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4 6h16M4 12h16M4 18h16" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <span>{{ sidebarOpen ? 'Close' : 'Docs Menu' }}</span>
+            </button>
+
+            <!-- Sidebar Overlay -->
+            <div class="sidebar-overlay" v-if="sidebarOpen" @click="toggleSidebar"></div>
+
             <!-- Sidebar -->
-            <aside class="doc-sidebar">
+            <aside class="doc-sidebar" :class="{open: sidebarOpen}">
               <div class="sidebar-search">
                 <button class="search-trigger" @click="toggleSearch" title="Search documentation (Ctrl+K)"
                   style="width:100%">

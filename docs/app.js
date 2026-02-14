@@ -15,6 +15,7 @@ createApp({
       contributors: [],
       loadingContributors: true,
       showDisclaimer: true,
+      sidebarOpen: false,
     };
   },
   computed: {
@@ -130,6 +131,11 @@ createApp({
     currentPage() {
       // Scroll to top when page changes
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Close sidebar and mobile menu
+      this.sidebarOpen = false;
+      this.mobileMenuOpen = false;
+      document.body.style.overflow = '';
 
       // Re-highlight code blocks
       this.$nextTick(() => {
@@ -253,6 +259,15 @@ createApp({
         this.searchQuery = "";
       }
     },
+    toggleSidebar() {
+      this.sidebarOpen = !this.sidebarOpen;
+      // Prevent body scroll when sidebar is open on mobile
+      if (this.sidebarOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    },
     closeSearch() {
       this.searchOpen = false;
       this.searchQuery = "";
@@ -261,6 +276,8 @@ createApp({
     selectResult(result) {
       this.currentPage = result.page;
       this.closeSearch();
+      this.sidebarOpen = false;
+      document.body.style.overflow = '';
     },
     toggleTheme() {
       this.isDark = !this.isDark;
