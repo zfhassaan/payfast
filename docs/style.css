@@ -433,7 +433,8 @@ body {
 }
 
 .mobile-menu {
-  display: flex !important; /* Keep flex to allow transitions */
+  display: flex !important;
+  /* Keep flex to allow transitions */
   position: fixed;
   top: 73px;
   left: 0;
@@ -447,8 +448,8 @@ body {
   opacity: 0;
   visibility: hidden;
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s ease,
-              visibility 0.3s ease;
+    opacity 0.3s ease,
+    visibility 0.3s ease;
   z-index: 1099;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
@@ -480,11 +481,9 @@ body {
   right: -20%;
   width: 800px;
   height: 800px;
-  background: radial-gradient(
-    circle,
-    rgba(99, 102, 241, 0.15) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      rgba(99, 102, 241, 0.15) 0%,
+      transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -504,11 +503,9 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(
-    135deg,
-    var(--primary-color) 0%,
-    var(--secondary-color) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--primary-color) 0%,
+      var(--secondary-color) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -571,17 +568,16 @@ body {
   position: absolute;
   width: 400px;
   height: 400px;
-  background: radial-gradient(
-    circle,
-    rgba(255, 215, 0, 0.3) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      rgba(255, 215, 0, 0.3) 0%,
+      transparent 70%);
   border-radius: 50%;
   filter: blur(60px);
   animation: pulse 4s ease-in-out infinite;
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     transform: scale(1);
@@ -604,6 +600,7 @@ body {
 }
 
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0);
@@ -643,11 +640,9 @@ body {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--primary-color),
-    var(--secondary-color)
-  );
+  background: linear-gradient(90deg,
+      var(--primary-color),
+      var(--secondary-color));
   transform: scaleX(0);
   transition: var(--transition);
 }
@@ -702,11 +697,19 @@ body {
   gap: 0;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Hide scrollbar for cleaner look */
+  -ms-overflow-style: none;
+}
+
+.code-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .code-tabs button {
   flex: 1;
-  padding: 1rem 2rem;
+  padding: 1rem 1.5rem;
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -714,6 +717,10 @@ body {
   cursor: pointer;
   transition: var(--transition);
   position: relative;
+  white-space: nowrap;
+  /* Prevent text wrapping */
+  min-width: 120px;
+  /* Ensure buttons have minimum width on small screens */
 }
 
 .code-tabs button.active {
@@ -795,11 +802,9 @@ body {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--primary-color),
-    var(--secondary-color)
-  );
+  background: linear-gradient(90deg,
+      var(--primary-color),
+      var(--secondary-color));
   transform: scaleX(0);
   transition: var(--transition);
 }
@@ -889,11 +894,9 @@ body {
 }
 
 .github-link-card {
-  background: linear-gradient(
-    135deg,
-    rgba(99, 102, 241, 0.1),
-    rgba(236, 72, 153, 0.1)
-  );
+  background: linear-gradient(135deg,
+      rgba(99, 102, 241, 0.1),
+      rgba(236, 72, 153, 0.1));
   border: 2px dashed var(--border-color);
   cursor: pointer;
   display: flex;
@@ -903,11 +906,9 @@ body {
 }
 
 .github-link-card:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(99, 102, 241, 0.2),
-    rgba(236, 72, 153, 0.2)
-  );
+  background: linear-gradient(135deg,
+      rgba(99, 102, 241, 0.2),
+      rgba(236, 72, 153, 0.2));
   border-color: var(--primary-color);
 }
 
@@ -992,12 +993,10 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.05),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.05),
+      transparent);
   animation: shimmer 1.5s infinite;
 }
 
@@ -1141,7 +1140,7 @@ body {
   font-size: 0.9rem;
 }
 
-.doc-content :not(pre) > code {
+.doc-content :not(pre)>code {
   background: var(--bg-tertiary);
   padding: 0.2rem 0.4rem;
   border-radius: var(--radius-sm);
@@ -1532,7 +1531,8 @@ kbd {
 
 @media (max-width: 1024px) {
   .doc-layout {
-    display: block !important; /* Force block to prevent grid from reserving space */
+    display: block !important;
+    /* Force block to prevent grid from reserving space */
   }
 
   aside.doc-sidebar {
@@ -1545,7 +1545,8 @@ kbd {
     height: 100vh !important;
     max-height: 100vh !important;
     margin: 0 !important;
-    z-index: 9999 !important; /* Extremely high z-index to be above everything */
+    z-index: 9999 !important;
+    /* Extremely high z-index to be above everything */
     border-radius: 0 !important;
     border-right: 1px solid var(--border-color) !important;
     transform: translateX(-100%) !important;
@@ -1563,7 +1564,8 @@ kbd {
 
   .sidebar-toggle {
     display: flex !important;
-    z-index: 10000 !important; /* Above the sidebar itself */
+    z-index: 10000 !important;
+    /* Above the sidebar itself */
   }
 
   .sidebar-overlay {
@@ -1615,7 +1617,7 @@ kbd {
     justify-content: center !important;
     flex-direction: column !important;
   }
-  
+
   .hero-buttons .btn {
     width: 100% !important;
   }
