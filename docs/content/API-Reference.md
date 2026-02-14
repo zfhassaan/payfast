@@ -222,7 +222,7 @@ $data = [
 ];
 ```
 
-**Returns**: `string|bool` (JSON string)
+**Returns**: `JsonResponse`
 
 **Response Format**:
 
@@ -265,7 +265,7 @@ $paymentData = [
 ];
 ```
 
-**Returns**: `mixed` (JSON string)
+**Returns**: `JsonResponse`
 
 **Response Format**:
 
@@ -298,7 +298,7 @@ $response = PayFast::payWithUPaisa($paymentData);
 
 **Parameters**: Same as `payWithEasyPaisa()`
 
-**Returns**: `mixed` (JSON string)
+**Returns**: `JsonResponse`
 
 **Example**:
 
@@ -327,7 +327,7 @@ $data = [
 ];
 ```
 
-**Returns**: `string|bool` (JSON string)
+**Returns**: `JsonResponse`
 
 **Response Format**:
 
@@ -353,7 +353,7 @@ $response = PayFast::walletTransactionInitiate($data);
 
 **Parameters**: Transaction data array
 
-**Returns**: `string|bool` (JSON string)
+**Returns**: `JsonResponse`
 
 **Response Format**:
 
@@ -424,6 +424,46 @@ $response = PayFast::getTransactionDetailsByBasketId($basketId);
 $response = PayFast::getTransactionDetailsByBasketId('ORD-12345');
 ```
 
+### voidTransaction()
+
+Void a transaction that has not been settled yet.
+
+```php
+$response = PayFast::voidTransaction($transactionId);
+```
+
+**Parameters**:
+
+- `$transactionId` (string) - PayFast transaction ID
+
+**Returns**: `JsonResponse`
+
+**Example**:
+
+```php
+$response = PayFast::voidTransaction('TXN123456');
+```
+
+### getSettlementStatus()
+
+Check if a transaction has been settled.
+
+```php
+$response = PayFast::getSettlementStatus($transactionId);
+```
+
+**Parameters**:
+
+- `$transactionId` (string) - PayFast transaction ID
+
+**Returns**: `JsonResponse`
+
+**Example**:
+
+```php
+$response = PayFast::getSettlementStatus('TXN123456');
+```
+
 ### refundTransactionRequest()
 
 Request a refund for a transaction.
@@ -442,7 +482,7 @@ $data = [
 ];
 ```
 
-**Returns**: `string|bool` (JSON string)
+**Returns**: `JsonResponse`
 
 **Response Format**:
 
@@ -511,7 +551,7 @@ $response = PayFast::listInstrumentsWithBank($bankCode);
 
 - `$bankCode` (string|array) - Bank code or array with bank_code
 
-**Returns**: `JsonResponse|bool`
+**Returns**: `JsonResponse`
 
 **Example**:
 
@@ -521,6 +561,73 @@ $response = PayFast::listInstrumentsWithBank('01');
 
 // Using array
 $response = PayFast::listInstrumentsWithBank(['bank_code' => '01']);
+```
+
+## Subscription Methods
+
+### createSubscription()
+
+Create a new recurring subscription.
+
+```php
+$response = PayFast::createSubscription($data);
+```
+
+**Parameters**:
+
+```php
+$data = [
+    'orderNumber' => 'SUB-123',
+    'transactionAmount' => 100.00,
+    'customer_email' => 'customer@example.com',
+    'customerMobileNo' => '03001234567',
+    'planId' => 'MONTHLY_PLAN',
+    'frequency' => 'monthly', // optional
+    'iterations' => 12,       // optional
+];
+```
+
+**Returns**: `JsonResponse`
+
+**Example**:
+
+```php
+$response = PayFast::createSubscription($data);
+```
+
+### updateSubscription()
+
+Update an existing subscription.
+
+```php
+$response = PayFast::updateSubscription($subscriptionId, $data);
+```
+
+**Parameters**:
+
+- `$subscriptionId` (string) - PayFast subscription ID
+- `$data` (array) - Updated subscription data
+
+**Returns**: `JsonResponse`
+
+### cancelSubscription()
+
+Cancel an active subscription.
+
+```php
+$response = PayFast::cancelSubscription($subscriptionId);
+```
+
+**Parameters**:
+
+- `$subscriptionId` (string) - PayFast subscription ID
+
+**Returns**: `JsonResponse`
+
+**Example**:
+
+```php
+$response = PayFast::cancelSubscription('SUB123456');
 ```
 
 ## IPN Methods

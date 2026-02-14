@@ -253,6 +253,15 @@
               </div>
 
               <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <h3>Subscriptions</h3>
+                <p>
+                  Recurring billing support for monthly, yearly or custom
+                  intervals with automated iteration management.
+                </p>
+              </div>
+
+              <div class="feature-card">
                 <div class="feature-icon">🔒</div>
                 <h3>Secure & Reliable</h3>
                 <p>
@@ -403,6 +412,8 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
                   <a href="#" @click.prevent="currentPage = 'Understanding-the-Hosted-Checkout-Process-for-Payfast'"
                     :class="{active: currentPage === 'Understanding-the-Hosted-Checkout-Process-for-Payfast'}">Hosted
                     Checkout</a>
+                  <a href="#" @click.prevent="currentPage = 'API-Reference#subscription-methods'"
+                    :class="{active: false}">Subscriptions</a>
                   <a href="#" @click.prevent="currentPage = 'Payment-Flows'"
                     :class="{active: currentPage === 'Payment-Flows'}">Payment Flows</a>
                 </div>
@@ -447,7 +458,7 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
           <div class="footer-section">
             <h4>PayFast Payment Gateway</h4>
             <p>PayFast Payment Gateway is a comprehensive Laravel package for seamless integration with PayFast payment
-              gateway APIs, supporting Direct Checkout, Hosted Checkout, and mobile wallet payments.</p>
+              gateway APIs, supporting Direct Checkout, Hosted Checkout, Subscriptions, Refunds, Voids, Settlement checks, and mobile wallet payments.</p>
           </div>
           <div class="footer-section">
             <h4>Documentation</h4>
