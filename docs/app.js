@@ -349,29 +349,13 @@ createApp({
         // Fallback to static data
         this.contributors = [
           {
-            login: "bschmitt",
-            name: "Bernd Schmitt",
-            avatar_url: "https://avatars.githubusercontent.com/u/239644?v=4",
-            html_url: "https://github.com/bschmitt",
-            location: 'Berlin',
-            contributions: 55,
-          },
-          {
             login: "zfhassaan",
             name: "Hassaan",
             avatar_url: "https://avatars.githubusercontent.com/u/17079656?v=4",
             html_url: "https://github.com/zfhassaan",
             location: 'Pakistan',
             contributions: 53,
-          },
-          {
-            login: "petekelly",
-            name: "Pete Kelly",
-            avatar_url: "https://avatars.githubusercontent.com/u/1177933?v=4",
-            html_url: "https://github.com/petekelly",
-            location: 'UK',
-            contributions: 6,
-          },
+          }
         ];
       } finally {
         this.loadingContributors = false;
@@ -380,11 +364,11 @@ createApp({
     async fetchIssues() {
       try {
         const response = await fetch(
-          "https://api.github.com/repos/zfhassaan/payfast/issues?state=all&per_page=10&sort=updated"
+          "https://api.github.com/repos/zfhassaan/payfast/issues?state=all&per_page=3&sort=updated"
         );
         if (response.ok) {
           const issuesList = await response.json();
-          
+
           // Format issues data
           this.issues = issuesList.map(issue => ({
             id: issue.id,
@@ -421,7 +405,7 @@ createApp({
       const now = new Date();
       const diffTime = Math.abs(now - date);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 0) return 'Today';
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays} days ago`;
