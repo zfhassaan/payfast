@@ -372,4 +372,3 @@ The Direct Checkout process for Payfast offers a secure and reliable solution fo
 
 
 
-

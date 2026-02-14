@@ -293,4 +293,3 @@ php artisan tinker
 
 
 
-

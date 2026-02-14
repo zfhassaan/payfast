@@ -82,7 +82,7 @@ and also in alias in `app/config.php`
 1. Get Authentication Token
 2. Initiate Transaction on Payfast Page.
 
-The Direct Checkout and Hosted checkout credentials can be obtained from <a href="https://gopayfast.com/">Payfast</a> The following are direct checkout methods that can be used with PCIDSS certified websites. You can read more about how to initiate Hosted checkout on <a href="https://github.com/zfhassaan/payfast/wiki/Understanding-the-Hosted-Checkout-Process-for-Payfast">this</a> wiki page
+The Direct Checkout and Hosted checkout credentials can be obtained from <a href="https://gopayfast.com/">Payfast</a> The following are direct checkout methods that can be used with PCIDSS certified websites. You can read more about how to initiate Hosted checkout in the <a href="docs/content/Understanding-the-Hosted-Checkout-Process-for-Payfast.md">documentation</a>.
 
 ##### What is PCI DSS Certified.
 PCI certification ensures the security of card data at your business through a set of requirements established by the PCI SSC. These include a number of commonly known best practices, such as: Installation of firewalls. Encryption of data transmissions, use of anti-virus software. In addition businesses must restrict access to cardholder data and monitor access to network resources.

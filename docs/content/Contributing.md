@@ -174,20 +174,20 @@ When adding features:
 
 Documentation pages are in `docs/content/` directory:
 
-- [Home.md](../docs/content/Home.md) - Main landing page
-- [Installation-Guide.md](../docs/content/Installation-Guide.md) - Installation
-- [Configuration-Guide.md](../docs/content/Configuration-Guide.md) - Configuration
-- [Getting-Started.md](../docs/content/Getting-Started.md) - Quick start
-- [Payment-Flows.md](../docs/content/Payment-Flows.md) - Payment flows
-- [API-Reference.md](../docs/content/API-Reference.md) - API documentation
-- [IPN-Handling.md](../docs/content/IPN-Handling.md) - IPN setup
-- [Events-and-Listeners.md](../docs/content/Events-and-Listeners.md) - Events
-- [Models-and-Database.md](../docs/content/Models-and-Database.md) - Database
-- [Console-Commands.md](../docs/content/Console-Commands.md) - Commands
-- [Testing-Guide.md](../docs/content/Testing-Guide.md) - Testing
-- [Troubleshooting.md](../docs/content/Troubleshooting.md) - Troubleshooting
-- [Security-Best-Practices.md](../docs/content/Security-Best-Practices.md) - Security
-- [Contributing.md](../docs/content/Contributing.md) - This file
+- [Home.md](Home.md) - Main landing page
+- [Installation-Guide.md](Installation-Guide.md) - Installation
+- [Configuration-Guide.md](Configuration-Guide.md) - Configuration
+- [Getting-Started.md](Getting-Started.md) - Quick start
+- [Payment-Flows.md](Payment-Flows.md) - Payment flows
+- [API-Reference.md](API-Reference.md) - API documentation
+- [IPN-Handling.md](IPN-Handling.md) - IPN setup
+- [Events-and-Listeners.md](Events-and-Listeners.md) - Events
+- [Models-and-Database.md](Models-and-Database.md) - Database
+- [Console-Commands.md](Console-Commands.md) - Commands
+- [Testing-Guide.md](Testing-Guide.md) - Testing
+- [Troubleshooting.md](Troubleshooting.md) - Troubleshooting
+- [Security-Best-Practices.md](Security-Best-Practices.md) - Security
+- [Contributing.md](Contributing.md) - This file
 
 ## Architecture Guidelines
 

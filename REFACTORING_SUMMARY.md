@@ -3,19 +3,22 @@
 ## Overview
 
 The PayFast package has been completely refactored to follow:
-- ✅ **PSR-12** coding standards
-- ✅ **Repository Pattern**
-- ✅ **Service-Based Architecture** with Event-Driven components
+
+- **PSR-12** coding standards
+- **Repository Pattern**
+- **Service-Based Architecture** with Event-Driven components
 
 ## What Changed
 
 ### 1. Repository Pattern Implementation
 
 **New Files:**
+
 - `src/Repositories/Contracts/ProcessPaymentRepositoryInterface.php`
 - `src/Repositories/ProcessPaymentRepository.php`
 
 **Benefits:**
+
 - Abstracted data access layer
 - Easier to test and mock
 - Follows Single Responsibility Principle
@@ -23,6 +26,7 @@ The PayFast package has been completely refactored to follow:
 ### 2. Service Layer Architecture
 
 **New Services:**
+
 - `Services/ConfigService.php` - Configuration management
 - `Services/HttpClientService.php` - HTTP communication
 - `Services/AuthenticationService.php` - Token management
@@ -30,6 +34,7 @@ The PayFast package has been completely refactored to follow:
 - `Services/TransactionService.php` - Transaction queries
 
 **All services have interfaces:**
+
 - `Services/Contracts/HttpClientInterface.php`
 - `Services/Contracts/AuthenticationServiceInterface.php`
 - `Services/Contracts/PaymentServiceInterface.php`
@@ -38,6 +43,7 @@ The PayFast package has been completely refactored to follow:
 ### 3. Event-Based Architecture
 
 **New Events:**
+
 - `Events/PaymentInitiated.php`
 - `Events/PaymentValidated.php`
 - `Events/PaymentCompleted.php`
@@ -45,17 +51,20 @@ The PayFast package has been completely refactored to follow:
 - `Events/TokenRefreshed.php`
 
 **New Listeners:**
+
 - `Listeners/LogPaymentActivity.php` - Logs all payment activities
 - `Listeners/StorePaymentRecord.php` - Stores payment records
 
 ### 4. Data Transfer Objects (DTOs)
 
 **New DTOs:**
+
 - `DTOs/PaymentRequestDTO.php` - Type-safe payment request data
 
 ### 5. Refactored Main Classes
 
 **Updated:**
+
 - `PayFast.php` - Now uses dependency injection and services
 - `Interfaces/PaymentInterface.php` - Updated with proper types
 - `Helpers/Utility.php` - PSR-12 compliant
@@ -70,12 +79,14 @@ The PayFast package has been completely refactored to follow:
 See `ARCHITECTURE.md` for detailed explanation.
 
 ### Why Service-Based?
+
 - Payment gateways need synchronous, sequential operations
 - Better error handling and transaction management
 - Easier to test and debug
 - Clear control flow
 
 ### Why Events?
+
 - Used for side effects (logging, notifications, analytics)
 - Doesn't block main payment flow
 - Allows extensibility without modifying core code
@@ -83,49 +94,58 @@ See `ARCHITECTURE.md` for detailed explanation.
 ## Code Quality Improvements
 
 ### PSR-12 Compliance
-- ✅ Proper spacing: `public function method() {` → `public function method(): void {`
-- ✅ Type declarations on all methods
-- ✅ `declare(strict_types=1)` in all files
-- ✅ Consistent naming (camelCase for methods)
-- ✅ Proper visibility modifiers
+
+- Proper spacing: `public function method() {` → `public function method(): void {`
+- Type declarations on all methods
+- `declare(strict_types=1)` in all files
+- Consistent naming (camelCase for methods)
+- Proper visibility modifiers
 
 ### Design Principles
 
 **Single Responsibility:**
+
 - Each service has one job
 - Repository only handles data access
 - Services don't mix concerns
 
 **Open/Closed:**
+
 - Extend via events without modifying core
 - New features via listeners
 
 **Liskov Substitution:**
+
 - All implementations follow their interfaces
 - Can swap implementations easily
 
 **Interface Segregation:**
+
 - Small, focused interfaces
 - No fat interfaces
 
 **Dependency Inversion:**
+
 - Depend on abstractions (interfaces)
 - All dependencies injected
 
 ## Breaking Changes
 
 ### Method Naming
+
 - `GetToken()` → `getToken()`
 - `RefreshToken()` → `refreshToken()`
 - `GetOTPScreen()` → `getOTPScreen()`
 - All methods now follow camelCase (PSR-12)
 
 ### Class Structure
+
 - `PayFast` no longer extends `PayfastService`
 - Uses dependency injection instead
 - Old `Payment` class is deprecated
 
 ### Response Handling
+
 - More consistent response format
 - Better error handling
 - Type-safe responses
@@ -133,18 +153,21 @@ See `ARCHITECTURE.md` for detailed explanation.
 ## Migration Guide
 
 ### Old Code:
+
 ```php
 $payfast = new PayFast();
 $result = $payfast->GetToken();
 ```
 
 ### New Code:
+
 ```php
 $payfast = app('payfast'); // or use facade
 $result = $payfast->getToken();
 ```
 
 ### Using Events:
+
 ```php
 use zfhassaan\Payfast\Events\PaymentCompleted;
 
@@ -214,6 +237,7 @@ src/
 ## Next Steps
 
 1. **Remove deprecated classes:**
+
    - `Payment.php` (old implementation)
    - `Helpers/PayfastService.php` (replaced by services)
    - `Helpers/ConfigLoader.php` (replaced by ConfigService)
@@ -229,11 +253,9 @@ src/
 
 ## Benefits Summary
 
-✅ **Maintainability**: Clear separation of concerns  
-✅ **Testability**: Easy to unit test each component  
-✅ **Extensibility**: Add features via events or services  
-✅ **Type Safety**: Strong typing throughout  
-✅ **PSR-12 Compliant**: Follows coding standards  
-✅ **Repository Pattern**: Clean data access layer  
-
-
+**Maintainability**: Clear separation of concerns  
+ **Testability**: Easy to unit test each component  
+ **Extensibility**: Add features via events or services  
+ **Type Safety**: Strong typing throughout  
+ **PSR-12 Compliant**: Follows coding standards  
+ **Repository Pattern**: Clean data access layer

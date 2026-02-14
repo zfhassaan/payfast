@@ -38,16 +38,19 @@ tests/
 ## Running Tests
 
 ### Run All Tests
+
 ```bash
 php artisan test
 ```
 
 ### Run Only PayFast Tests
+
 ```bash
 php artisan test --filter PayFast
 ```
 
 ### Run Specific Test Suite
+
 ```bash
 # Unit tests only
 php artisan test tests/Unit/PayFast
@@ -57,11 +60,13 @@ php artisan test tests/Feature/PayFast
 ```
 
 ### Run Specific Test Class
+
 ```bash
 php artisan test tests/Unit/PayFast/Services/AuthenticationServiceTest.php
 ```
 
 ### Run with Coverage
+
 ```bash
 php artisan test --coverage
 ```
@@ -71,32 +76,40 @@ php artisan test --coverage
 ### Unit Tests
 
 #### Service Tests
+
 - **AuthenticationServiceTest**: Tests token retrieval and refresh
 - **PaymentServiceTest**: Tests payment validation and transaction initiation
 - **OTPVerificationServiceTest**: Tests OTP verification and pares handling
 - **TransactionServiceTest**: Tests transaction queries and refunds
 
 #### Repository Tests
+
 - **ProcessPaymentRepositoryTest**: Tests CRUD operations and queries
 
 #### DTO Tests
+
 - **PaymentRequestDTOTest**: Tests data transfer object creation and conversion
 
 #### Model Tests
+
 - **ProcessPaymentTest**: Tests model methods and status transitions
 
 #### Event Tests
+
 - **PaymentEventsTest**: Tests event instantiation and data
 
 #### Listener Tests
+
 - **LogPaymentActivityTest**: Tests event listeners
 
 #### Console Command Tests
+
 - **CABPaymentsTest**: Tests console command functionality
 
 ### Feature Tests
 
 #### Payment Flow Tests
+
 - **PaymentFlowTest**: Tests complete payment flows including:
   - Card payment with OTP verification
   - Payment validation failures
@@ -106,15 +119,15 @@ php artisan test --coverage
 
 The test suite covers:
 
-- ✅ Service layer (Authentication, Payment, Transaction, OTP)
-- ✅ Repository pattern implementation
-- ✅ DTO creation and conversion
-- ✅ Model methods and status transitions
-- ✅ Event dispatching and handling
-- ✅ Console commands
-- ✅ Complete payment flows
-- ✅ Error handling
-- ✅ Edge cases
+- Service layer (Authentication, Payment, Transaction, OTP)
+- Repository pattern implementation
+- DTO creation and conversion
+- Model methods and status transitions
+- Event dispatching and handling
+- Console commands
+- Complete payment flows
+- Error handling
+- Edge cases
 
 ## Mocking
 
@@ -173,10 +186,10 @@ class MyServiceTest extends TestCase
     {
         // Arrange
         $service = new MyService();
-        
+
         // Act
         $result = $service->myMethod();
-        
+
         // Assert
         $this->assertNotNull($result);
     }
@@ -217,6 +230,7 @@ class MyFeatureTest extends TestCase
 ## Continuous Integration
 
 Tests should pass in CI/CD pipelines. Ensure:
+
 - All dependencies are installed
 - Database migrations run
 - Environment variables are set
@@ -225,13 +239,17 @@ Tests should pass in CI/CD pipelines. Ensure:
 ## Troubleshooting
 
 ### Tests failing due to migrations
+
 Ensure migrations are loaded in `TestCase::setUp()`:
+
 ```php
 $this->loadMigrationsFrom(__DIR__ . '/../../../packages/zfhassaan/payfast/src/database/migrations');
 ```
 
 ### Mock not working
+
 Ensure you call `Mockery::close()` in `tearDown()`:
+
 ```php
 protected function tearDown(): void
 {
@@ -241,11 +259,9 @@ protected function tearDown(): void
 ```
 
 ### Database issues
+
 Use `RefreshDatabase` trait for feature tests:
+
 ```php
 use Illuminate\Foundation\Testing\RefreshDatabase;
 ```
-
-
-
-
