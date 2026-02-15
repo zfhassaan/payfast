@@ -519,8 +519,8 @@ $response = PayFast::getOTPScreen($paymentData);</code></pre>
                   <a href="#" @click.prevent="currentPage = 'Understanding-the-Hosted-Checkout-Process-for-Payfast'"
                     :class="{active: currentPage === 'Understanding-the-Hosted-Checkout-Process-for-Payfast'}">Hosted
                     Checkout</a>
-                  <a href="#" @click.prevent="currentPage = 'API-Reference#subscription-methods'"
-                    :class="{active: false}">Subscriptions</a>
+                  <a href="#" @click.prevent="currentPage = 'Subscriptions'"
+                    :class="{active: currentPage === 'Subscriptions'}">Subscriptions</a>
                   <a href="#" @click.prevent="currentPage = 'Payment-Flows'"
                     :class="{active: currentPage === 'Payment-Flows'}">Payment Flows</a>
                 </div>
