@@ -16,7 +16,7 @@ The PayFast package supports multiple payment methods:
 
 ### Complete Flow Diagram
 
-```
+```php
 1. Customer Initiates Payment
    ↓
 2. Validate Customer (getOTPScreen)
@@ -63,10 +63,10 @@ if ($result['status']) {
     // Payment stored in DB with status: 'validated'
     $transactionId = $result['data']['transaction_id'];
     $paymentId = $result['data']['payment_id'];
-    
+
     // Redirect to OTP screen
     $redirectUrl = $result['data']['redirect_url'] ?? '/otp-screen';
-    
+
     return redirect($redirectUrl)->with([
         'transaction_id' => $transactionId,
         'payment_id' => $paymentId,
@@ -131,13 +131,13 @@ public function handleCallback(Request $request)
     if ($result['status']) {
         // Payment completed successfully
         // Payment status updated to 'completed' in DB
-        
+
         // Get payment record
         $payment = \zfhassaan\Payfast\Models\ProcessPayment::where('data_3ds_pares', $request->pares)->first();
-        
+
         // Update your order status, send confirmation email, etc.
         // ...
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Payment completed',
@@ -170,7 +170,7 @@ if ($result['status']) {
     // Same flow as card payment - redirect to OTP screen
     $transactionId = $result['data']['transaction_id'];
     $paymentId = $result['data']['payment_id'];
-    
+
     return redirect('/otp-screen')->with([
         'transaction_id' => $transactionId,
         'payment_id' => $paymentId,
@@ -377,11 +377,11 @@ class PaymentController extends Controller
 
         if ($result['status']) {
             $payment = ProcessPayment::where('data_3ds_pares', $request->pares)->first();
-            
+
             // Update your order
             // Send confirmation email
             // etc.
-            
+
             return response()->json([
                 'status' => 'success',
                 'transaction_id' => $payment->transaction_id,
@@ -407,7 +407,7 @@ class PaymentController extends Controller
 try {
     $response = PayFast::completeTransactionFromPares($pares);
     $result = json_decode($response->getContent(), true);
-    
+
     if (!$result['status']) {
         // Log error
         \Log::error('Payment completion failed', [
@@ -415,7 +415,7 @@ try {
             'error' => $result['message'],
             'code' => $result['code'],
         ]);
-        
+
         // Update payment status
         $payment = ProcessPayment::where('data_3ds_pares', $pares)->first();
         if ($payment) {
@@ -435,4 +435,3 @@ try {
 - [API Reference](API-Reference.md) - Explore all available methods
 - [IPN Handling](IPN-Handling.md) - Set up webhook notifications
 - [Events and Listeners](Events-and-Listeners.md) - Understand event system
-
