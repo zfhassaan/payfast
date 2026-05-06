@@ -18,6 +18,7 @@ createApp({
       loadingIssues: true,
       showDisclaimer: true,
       sidebarOpen: false,
+      latestVersion: null,
     };
   },
   computed: {
@@ -200,6 +201,9 @@ createApp({
 
       // Check disclaimer status
       this.checkDisclaimerStatus();
+
+      // Fetch latest version
+      this.fetchLatestVersion();
     } catch (error) {
       console.error("Error in mounted hook:", error);
       // Ensure we still try to fetch contributors even if something else fails
@@ -416,6 +420,44 @@ createApp({
       if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
       if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
       return `${Math.floor(diffDays / 365)} years ago`;
+    },
+    async fetchLatestVersion() {
+      try {
+        const CACHE_KEY = "payfast_latest_version";
+        const CACHE_TIME_KEY = "payfast_version_timestamp";
+        const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in ms
+
+        const cachedVersion = localStorage.getItem(CACHE_KEY);
+        const cachedTimestamp = localStorage.getItem(CACHE_TIME_KEY);
+        const now = Date.now();
+
+        if (cachedVersion && cachedTimestamp && (now - parseInt(cachedTimestamp) < ONE_DAY)) {
+          this.latestVersion = cachedVersion;
+          return;
+        }
+
+        const response = await fetch("https://api.github.com/repos/zfhassaan/payfast/releases/latest");
+        if (response.ok) {
+          const release = await response.json();
+          this.latestVersion = release.tag_name;
+        } else {
+          // If no releases found or API error, try to fetch tags as fallback
+          const tagsResponse = await fetch("https://api.github.com/repos/zfhassaan/payfast/tags");
+          if (tagsResponse.ok) {
+            const tags = await tagsResponse.json();
+            if (tags.length > 0) {
+              this.latestVersion = tags[0].name;
+            }
+          }
+        }
+
+        if (this.latestVersion) {
+          localStorage.setItem(CACHE_KEY, this.latestVersion);
+          localStorage.setItem(CACHE_TIME_KEY, now.toString());
+        }
+      } catch (error) {
+        console.error("Failed to fetch latest version:", error);
+      }
     },
     async loadDocumentation() {
       // Try to load documentation from content folder (for web server)
@@ -768,6 +810,7 @@ PAYFAST_SECURED_KEY=your_secured_key
 
 # Application Settings
 PAYFAST_RETURN_URL=https://yourdomain.com/payment/callback
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 PAYFAST_MODE=sandbox
 \`\`\`
 
@@ -776,6 +819,10 @@ PAYFAST_MODE=sandbox
 \`\`\`env
 # Store Configuration
 PAYFAST_STORE_ID=your_store_id
+
+# IPN (Instant Payment Notification) URL
+# If not set, auto-resolves to the package's built-in route: /api/payfast/ipn
+# PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 
 # Transaction Verification
 PAYFAST_VERIFY_TRANSACTION=https://api.payfast.com/transaction/view
@@ -1214,7 +1261,15 @@ $response = PayFast::handleIPN($ipnData);
     "message": "IPN processed successfully",
     "code": "00"
 }
-\`\`\``;
+\`\`\`
+
+> **Note**: You typically don't need a custom controller. The package registers a built-in IPN endpoint at \`POST /api/payfast/ipn\` that handles this automatically.
+
+## Automatic checkout_url Injection
+
+All payment methods automatically include the \`checkout_url\` parameter in their outgoing API requests to PayFast. This tells PayFast where to send IPN callbacks when a payment status changes.
+
+If \`PAYFAST_CHECKOUT_URL\` is not set, the package auto-resolves the URL using the built-in route.`;
       }
 
       // Payment Flows
@@ -1239,6 +1294,7 @@ The PayFast package supports multiple payment methods:
 1. Customer Initiates Payment
    ↓
 2. Validate Customer (getOTPScreen)
+   → checkout_url automatically included in request
    ↓
 3. Payment Stored in DB (status: validated)
    ↓
@@ -1255,7 +1311,12 @@ The PayFast package supports multiple payment methods:
 9. Complete Transaction (completeTransactionFromPares)
    ↓
 10. Payment Completed (status: completed)
+   ↓
+11. PayFast sends IPN to checkout_url (POST /api/payfast/ipn)
+   → Package auto-processes: logs, updates status, dispatches events
 \`\`\`
+
+> **Note**: The \`checkout_url\` is automatically injected into every outgoing API request. See [IPN Handling](IPN-Handling.md) for details.
 
 ### Step-by-Step Implementation
 
@@ -1319,84 +1380,72 @@ The IPN service handles webhook notifications from PayFast to update payment sta
 
 ## Overview
 
-IPN (Instant Payment Notification) is a webhook system that PayFast uses to notify your application about payment status changes. The IPN service:
+IPN (Instant Payment Notification) is a webhook system that PayFast uses to notify your application about payment status changes. The PayFast package provides:
 
-- Logs all IPN notifications
-- Updates payment status based on IPN data
-- Dispatches events for completed/failed payments
-- Prevents duplicate processing (idempotency)
+- **Built-in IPN route** — A pre-registered \`POST /api/payfast/ipn\` endpoint
+- **Automatic \`checkout_url\` injection** — Every outgoing API request includes the IPN endpoint URL
+- **IPN logging** — All notifications are stored in the \`payfast_ipn_table\`
+- **Payment status updates** — Automatically updates payment records based on IPN data
+- **Event dispatching** — Fires \`PaymentCompleted\` or \`PaymentFailed\` events
+- **Idempotency** — Prevents duplicate processing of the same notification
+
+## How It Works
+
+When you initiate any payment through the package, the \`checkout_url\` parameter is **automatically injected** into the request payload sent to PayFast.
+
+> 1. **Your App** → PayFast API *(payment request includes checkout_url)*
+> 2. **PayFast** processes the payment
+> 3. **PayFast** → \`POST /api/payfast/ipn\` *(sends IPN to your checkout_url)*
+> 4. **Package** validates, logs, and updates payment status
+> 5. **Events** are dispatched (\`PaymentCompleted\` / \`PaymentFailed\`)
 
 ## Setup
 
-The IPN service is already registered in the service provider and ready to use. You just need to create a controller method and route to handle incoming IPN requests.
+### Step 1: Configure the Checkout URL
 
-## Controller Implementation
+Add \`PAYFAST_CHECKOUT_URL\` to your \`.env\` file:
 
-Add this method to your controller to handle IPN webhooks:
+\`\`\`env
+# Option 1: Explicit URL (recommended for production)
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 
-\`\`\`php
-<?php
-
-namespace App\\Http\\Controllers;
-
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Log;
-use zfhassaan\\Payfast\\Facades\\Payfast;
-
-class PaymentController extends Controller
-{
-    public function handleIPN(Request $request)
-    {
-        $ipnData = $request->all();
-
-        Log::channel('payfast')->info('IPN Received', [
-            'ip' => $request->ip(),
-            'data' => $ipnData,
-        ]);
-
-        $response = Payfast::handleIPN($ipnData);
-        
-        return $response;
-    }
-}
+# Option 2: Leave empty to auto-resolve from route('payfast.ipn.handle')
 \`\`\`
 
-## Route Setup
+### Step 2: That's It!
 
-Add this route to your \`routes/web.php\` or \`routes/api.php\`:
+The package automatically:
+- Registers the \`POST /api/payfast/ipn\` route (named \`payfast.ipn.handle\`)
+- Excludes the route from CSRF verification (uses \`api\` middleware group)
+- Injects the \`checkout_url\` into every outgoing PayFast API request
+- Processes incoming IPN notifications and updates payment statuses
 
-\`\`\`php
-Route::post('/payment/ipn', [PaymentController::class, 'handleIPN']);
-\`\`\`
-
-**Important**: Disable CSRF protection for the IPN endpoint since PayFast will be calling it from their servers.
-
-### Disable CSRF for IPN Endpoint
-
-In \`app/Http/Middleware/VerifyCsrfToken.php\`:
-
-\`\`\`php
-protected $except = [
-    'payment/ipn',
-    'api/payment/ipn', // If using API route
-];
-\`\`\`
-
-## PayFast Configuration
-
-Configure your IPN URL in PayFast dashboard:
-
-- **Production**: \`https://yourdomain.com/payment/ipn\`
-- **Sandbox**: \`https://yourdomain.com/payment/ipn\`
+No manual controller creation, route registration, or CSRF exclusion is needed.
 
 ## What Happens When IPN is Received
 
-1. **Validation**: IPN data is validated (checks for required fields)
-2. **Idempotency Check**: Checks if IPN was already processed
-3. **IPN Logging**: Creates an entry in \`payfast_ipn_table\`
-4. **Payment Update**: Finds and updates the payment record
-5. **Event Dispatch**: Dispatches \`PaymentCompleted\` or \`PaymentFailed\` events
-6. **Email Notifications**: Email notifications are sent automatically (via listeners)
+1. **Logging**: Incoming request is logged via the \`payfast\` log channel
+2. **Validation**: IPN data is validated (checks for required fields)
+3. **Idempotency Check**: Checks if IPN was already processed
+4. **IPN Logging**: Creates an entry in \`payfast_ipn_table\` (with raw_payload and ip_address)
+5. **Payment Update**: Finds and updates the payment record
+6. **Event Dispatch**: Dispatches \`PaymentCompleted\` or \`PaymentFailed\` events
+7. **Email Notifications**: Email notifications are sent automatically (via listeners)
+
+## Custom IPN Handling (Optional)
+
+If you need custom logic, listen to payment events:
+
+\`\`\`php
+use zfhassaan\Payfast\Events\PaymentCompleted;
+
+Event::listen(PaymentCompleted::class, function ($event) {
+    $paymentData = $event->paymentData;
+    // Update order status, send notifications, etc.
+});
+\`\`\`
+
+Or create your own controller and point \`PAYFAST_CHECKOUT_URL\` to it.
 
 ## Next Steps
 
@@ -1850,11 +1899,12 @@ Common issues and solutions when using the PayFast package.
 **Error**: IPN webhook not being called
 
 **Solution**:
-1. Check IPN URL is configured in PayFast dashboard
-2. Verify URL is publicly accessible
-3. Check server logs for incoming requests
-4. Verify HTTPS is working correctly
-5. Check firewall isn't blocking PayFast IPs
+1. Check \`PAYFAST_CHECKOUT_URL\` is configured correctly in \`.env\`
+2. Verify route exists: run \`php artisan route:list --name=payfast\`
+3. Verify URL is publicly accessible
+4. Check server logs for incoming requests
+5. Verify HTTPS is working correctly
+6. Check firewall isn't blocking PayFast IPs
 
 ## Getting Help
 
@@ -1937,9 +1987,9 @@ $request->validate([
 
 ## IPN Security
 
-### IP Whitelisting
+### IP Whitelisting (Custom Controllers)
 
-Whitelist PayFast IP addresses:
+If you are using a custom IPN controller by setting \`PAYFAST_CHECKOUT_URL\`, you can whitelist PayFast IP addresses:
 
 \`\`\`php
 public function handleIPN(Request $request)
@@ -1959,17 +2009,7 @@ public function handleIPN(Request $request)
 }
 \`\`\`
 
-### Disable CSRF for IPN
-
-Add IPN route to CSRF exceptions:
-
-\`\`\`php
-// app/Http/Middleware/VerifyCsrfToken.php
-protected $except = [
-    'payment/ipn',
-    'api/payment/ipn',
-];
-\`\`\`
+> **Note**: The package's built-in IPN route automatically excludes CSRF verification by using the \`api\` middleware group. You do not need to manually configure CSRF exceptions unless you are using a custom \`web\` route.
 
 ## Data Protection
 

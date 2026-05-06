@@ -29,6 +29,7 @@ class PaymentService implements PaymentServiceInterface
             'account_type_id' => '1',
             'order_date' => Carbon::today()->toDateString(),
             'data_3ds_callback_url' => $this->configService->getReturnUrl(),
+            'checkout_url' => $this->configService->getCheckoutUrl(),
             'currency_code' => 'PKR',
         ]);
 
@@ -58,6 +59,7 @@ class PaymentService implements PaymentServiceInterface
             'customer_mobile_no' => $dto->customerMobileNo,
             'customer_email_address' => $dto->customerEmail,
             'order_date' => Carbon::today()->toDateString(),
+            'checkout_url' => $this->configService->getCheckoutUrl(),
             'transaction_id' => $dto->transactionId ?? '',
             'card_number' => $dto->cardNumber,
             'expiry_year' => $dto->expiryYear,
@@ -91,6 +93,7 @@ class PaymentService implements PaymentServiceInterface
         $data['account_type_id'] = (string) $accountTypeId;
         $data['bank_code'] = (string) $bankCode;
         $data['order_date'] = Carbon::today()->toDateString();
+        $data['checkout_url'] = $this->configService->getCheckoutUrl();
 
         $url = $this->configService->getApiUrl() . 'customer/validate';
         $headers = [
@@ -111,6 +114,8 @@ class PaymentService implements PaymentServiceInterface
      */
     public function initiateWalletTransaction(array $data, string $authToken): array
     {
+        $data['checkout_url'] = $this->configService->getCheckoutUrl();
+
         $url = $this->configService->getApiUrl() . 'transaction';
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',

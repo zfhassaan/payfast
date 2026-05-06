@@ -51,6 +51,7 @@ class PayFastServiceProvider extends ServiceProvider
                 __DIR__ . '/../database/migrations/2024_02_02_194203_payfast_create_activity_logs_table.php' => database_path('migrations'),
                 __DIR__ . '/../database/migrations/2024_02_02_195511_payfast_create_ipn_table.php' => database_path('migrations'),
                 __DIR__ . '/../database/migrations/2025_01_15_000001_add_status_and_pares_to_process_payments.php' => database_path('migrations'),
+                __DIR__ . '/../database/migrations/2025_05_06_000001_add_raw_payload_and_ip_to_ipn_table.php' => database_path('migrations'),
             ], 'payfast-migrations');
 
             // Publish email templates
@@ -93,6 +94,9 @@ class PayFastServiceProvider extends ServiceProvider
 
         // Load views
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'payfast');
+
+        // Load package API routes (IPN endpoint)
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
     }
 
     /**

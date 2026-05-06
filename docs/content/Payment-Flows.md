@@ -20,6 +20,7 @@ The PayFast package supports multiple payment methods:
 1. Customer Initiates Payment
    ↓
 2. Validate Customer (getOTPScreen)
+   → checkout_url automatically included in request
    ↓
 3. Payment Stored in DB (status: validated)
    ↓
@@ -36,7 +37,12 @@ The PayFast package supports multiple payment methods:
 9. Complete Transaction (completeTransactionFromPares)
    ↓
 10. Payment Completed (status: completed)
+   ↓
+11. PayFast sends IPN to checkout_url (POST /api/payfast/ipn)
+   → Package auto-processes: logs, updates status, dispatches events
 ```
+
+> **Note**: The `checkout_url` is automatically injected into every outgoing API request by the package. PayFast uses this URL to send IPN (Instant Payment Notification) callbacks. See [IPN Handling](IPN-Handling.md) for details.
 
 ### Step-by-Step Implementation
 

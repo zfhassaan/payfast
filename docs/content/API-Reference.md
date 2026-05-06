@@ -682,6 +682,25 @@ public function handleIPN(Request $request)
 }
 ```
 
+> **Note**: You typically don't need a custom controller. The package registers a built-in IPN endpoint at `POST /api/payfast/ipn` that handles this automatically.
+
+## Automatic `checkout_url` Injection
+
+All payment methods (`getOTPScreen`, `initiateTransaction`, `payWithEasyPaisa`, `payWithUPaisa`, `validateWalletTransaction`, `walletTransactionInitiate`) automatically include the `checkout_url` parameter in their outgoing API requests to PayFast.
+
+This tells PayFast where to send IPN (Instant Payment Notification) callbacks when a payment status changes.
+
+**Configuration**:
+
+```env
+# Explicit URL (recommended for production)
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
+
+# Or leave empty to auto-resolve from the built-in route
+```
+
+If `PAYFAST_CHECKOUT_URL` is not set, the package auto-resolves the URL using `route('payfast.ipn.handle')` and your application's `APP_URL`.
+
 ## Token Management
 
 ### getAuthToken()

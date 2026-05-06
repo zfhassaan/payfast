@@ -16,11 +16,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $id
  * @property string $uid
  * @property string|null $order_no
- * @property string $transaction_id
+ * @property string|null $transaction_id
  * @property string $status
  * @property float $amount
  * @property string $currency
  * @property array|null $details
+ * @property string|null $raw_payload
+ * @property string|null $ip_address
  * @property \Illuminate\Support\Carbon $received_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -52,6 +54,8 @@ class IPNLog extends Model
         'amount',
         'currency',
         'details',
+        'raw_payload',
+        'ip_address',
         'received_at',
     ];
 

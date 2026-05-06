@@ -11,6 +11,7 @@ class ConfigService
     private string $securedKey;
     private string $grantType;
     private string $returnUrl;
+    private string $checkoutUrl;
     private string $storeId;
     private string $mode;
 
@@ -35,6 +36,7 @@ class ConfigService
         $this->grantType = config('payfast.grant_type', '');
         $this->returnUrl = config('payfast.return_url', '');
         $this->storeId = config('payfast.store_id', '');
+        $this->checkoutUrl = config('payfast.checkout_url', '');
     }
 
     public function getApiUrl(): string
@@ -71,6 +73,26 @@ class ConfigService
     {
         return $this->mode;
     }
+
+    /**
+     * Get checkout URL for IPN (Instant Payment Notification) callbacks.
+     *
+     * If not explicitly configured via PAYFAST_CHECKOUT_URL, this will
+     * auto-resolve to the package's built-in IPN route.
+     *
+     * @return string
+     */
+    public function getCheckoutUrl(): string
+    {
+        if (!empty($this->checkoutUrl)) {
+            return $this->checkoutUrl;
+        }
+
+        // Auto-resolve to the package's built-in IPN route
+        try {
+            return route('payfast.ipn.handle');
+        } catch (\Exception $e) {
+            return '';
+        }
+    }
 }
-
-

@@ -8,6 +8,7 @@ return [
     'secured_key' => env('PAYFAST_SECURED_KEY', ''),
     'store_id' => env('PAYFAST_STORE_ID', ''),
     'return_url' => env('PAYFAST_RETURN_URL', ''),
+    'checkout_url' => env('PAYFAST_CHECKOUT_URL', ''),
     'mode' => env('PAYFAST_MODE', 'sandbox'),
     'transaction_check' => env('PAYFAST_VERIFY_TRANSACTION', ''),
 

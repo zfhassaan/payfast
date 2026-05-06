@@ -4,94 +4,50 @@ The IPN service handles webhook notifications from PayFast to update payment sta
 
 ## Overview
 
-IPN (Instant Payment Notification) is a webhook system that PayFast uses to notify your application about payment status changes. The IPN service:
+IPN (Instant Payment Notification) is a webhook system that PayFast uses to notify your application about payment status changes. The PayFast package provides:
 
-- Logs all IPN notifications
-- Updates payment status based on IPN data
-- Dispatches events for completed/failed payments
-- Prevents duplicate processing (idempotency)
+- **Built-in IPN route** — A pre-registered `POST /api/payfast/ipn` endpoint
+- **Automatic `checkout_url` injection** — Every outgoing API request includes the IPN endpoint URL
+- **IPN logging** — All notifications are stored in the `payfast_ipn_table`
+- **Payment status updates** — Automatically updates payment records based on IPN data
+- **Event dispatching** — Fires `PaymentCompleted` or `PaymentFailed` events
+- **Idempotency** — Prevents duplicate processing of the same notification
+
+## How It Works
+
+When you initiate any payment through the package (card payments, wallet payments, etc.), the `checkout_url` parameter is **automatically injected** into the request payload sent to PayFast. This tells PayFast where to send IPN callbacks when the payment status changes.
+
+> 1. **Your App** → PayFast API *(payment request includes checkout_url)*
+> 2. **PayFast** processes the payment
+> 3. **PayFast** → `POST /api/payfast/ipn` *(sends IPN to your checkout_url)*
+> 4. **Package** validates, logs, and updates payment status
+> 5. **Events** are dispatched (`PaymentCompleted` / `PaymentFailed`)
 
 ## Setup
 
-The IPN service is already registered in the service provider and ready to use. You just need to create a controller method and route to handle incoming IPN requests.
+### Step 1: Configure the Checkout URL
 
-## Controller Implementation
+Add `PAYFAST_CHECKOUT_URL` to your `.env` file:
 
-Add this method to your controller to handle IPN webhooks:
+```env
+# Option 1: Explicit URL (recommended for production)
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use zfhassaan\Payfast\Facades\Payfast;
-
-class PaymentController extends Controller
-{
-    /**
-     * Handle IPN webhook from PayFast.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function handleIPN(Request $request)
-    {
-        // Get all request data (can be POST or GET)
-        $ipnData = $request->all();
-
-        // Log the incoming IPN for debugging
-        Log::channel('payfast')->info('IPN Received', [
-            'ip' => $request->ip(),
-            'data' => $ipnData,
-        ]);
-
-        // Process the IPN using PayFast service
-        $response = Payfast::handleIPN($ipnData);
-        
-        // Return response (PayFast expects 200 OK for successful receipt)
-        return $response;
-    }
-}
+# Option 2: Leave empty to auto-resolve from route('payfast.ipn.handle')
+# PAYFAST_CHECKOUT_URL=
 ```
 
-## Route Setup
+> **Note**: If `PAYFAST_CHECKOUT_URL` is not set, the package will auto-resolve the URL using Laravel's `route()` helper and your `APP_URL`. For production environments, it is recommended to set this explicitly.
 
-Add this route to your `routes/web.php` or `routes/api.php`:
+### Step 2: That's It!
 
-```php
-// For web routes (recommended for PayFast)
-Route::post('/payment/ipn', [PaymentController::class, 'handleIPN']);
+The package automatically:
+- Registers the `POST /api/payfast/ipn` route (named `payfast.ipn.handle`)
+- Excludes the route from CSRF verification (it uses the `api` middleware group)
+- Injects the `checkout_url` into every outgoing PayFast API request
+- Processes incoming IPN notifications and updates payment statuses
 
-// Or for API routes
-Route::post('/api/payment/ipn', [PaymentController::class, 'handleIPN'])->middleware('api');
-```
-
-**Important**: Disable CSRF protection for the IPN endpoint since PayFast will be calling it from their servers.
-
-### Disable CSRF for IPN Endpoint
-
-In `app/Http/Middleware/VerifyCsrfToken.php`:
-
-```php
-protected $except = [
-    'payment/ipn',
-    'api/payment/ipn', // If using API route
-];
-```
-
-## PayFast Configuration
-
-Configure your IPN URL in PayFast dashboard:
-
-- **Production**: `https://yourdomain.com/payment/ipn`
-- **Sandbox**: `https://yourdomain.com/payment/ipn`
-
-The IPN URL should be:
-- Accessible via HTTPS
-- Publicly accessible (not behind authentication)
-- Returns 200 OK status for successful processing
+No manual controller creation, route registration, or CSRF exclusion is needed.
 
 ## IPN Data Structure
 
@@ -119,18 +75,21 @@ PayFast sends IPN notifications with various field names. The service handles:
 
 The service automatically maps IPN statuses to payment statuses:
 
-- `00`, `completed`, `success` → `completed`
-- `failed`, `failure` → `failed`
-- `cancelled`, `cancel` → `cancelled`
+| IPN Status | Payment Status |
+|---|---|
+| `00`, `completed`, `success` | `completed` |
+| `failed`, `failure` | `failed` |
+| `cancelled`, `cancel` | `cancelled` |
 
 ## What Happens When IPN is Received
 
-1. **Validation**: IPN data is validated (checks for required fields)
-2. **Idempotency Check**: Checks if IPN was already processed
-3. **IPN Logging**: Creates an entry in `payfast_ipn_table`
-4. **Payment Update**: Finds and updates the payment record
-5. **Event Dispatch**: Dispatches `PaymentCompleted` or `PaymentFailed` events
-6. **Email Notifications**: Email notifications are sent automatically (via listeners)
+1. **Logging**: Incoming request is logged via the `payfast` log channel
+2. **Validation**: IPN data is validated (checks for required fields)
+3. **Idempotency Check**: Checks if IPN was already processed
+4. **IPN Logging**: Creates an entry in `payfast_ipn_table`
+5. **Payment Update**: Finds and updates the payment record
+6. **Event Dispatch**: Dispatches `PaymentCompleted` or `PaymentFailed` events
+7. **Email Notifications**: Email notifications are sent automatically (via listeners)
 
 ## Response Format
 
@@ -160,11 +119,105 @@ The service automatically maps IPN statuses to payment statuses:
 }
 ```
 
+## Custom IPN Handling (Optional)
+
+If you need custom logic beyond what the built-in controller provides, you have two options:
+
+### Option 1: Listen to Events
+
+The recommended approach — listen to payment events in your application:
+
+```php
+use zfhassaan\Payfast\Events\PaymentCompleted;
+use zfhassaan\Payfast\Events\PaymentFailed;
+
+// In your EventServiceProvider or via Event::listen()
+Event::listen(PaymentCompleted::class, function ($event) {
+    $paymentData = $event->paymentData;
+    // Update order status, send notifications, etc.
+});
+
+Event::listen(PaymentFailed::class, function ($event) {
+    // Handle failed payment
+});
+```
+
+### Option 2: Custom Controller
+
+Override the built-in IPN handling by creating your own controller:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use zfhassaan\Payfast\Facades\Payfast;
+
+class PaymentController extends Controller
+{
+    public function handleIPN(Request $request)
+    {
+        // Custom pre-processing logic
+        $ipnData = $request->all();
+
+        Log::channel('payfast')->info('Custom IPN Handler', [
+            'ip' => $request->ip(),
+            'data' => $ipnData,
+        ]);
+
+        // Delegate to PayFast service
+        $response = Payfast::handleIPN($ipnData);
+
+        // Custom post-processing logic
+        return $response;
+    }
+}
+```
+
+Then register your custom route (this will take priority if you set `PAYFAST_CHECKOUT_URL` to your custom endpoint):
+
+```php
+// routes/api.php
+Route::post('/payment/ipn', [PaymentController::class, 'handleIPN']);
+```
+
+Update your `.env`:
+```env
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payment/ipn
+```
+
+### Option 3: Extend the IPN Service
+
+For advanced customization, extend the IPN service:
+
+```php
+use zfhassaan\Payfast\Services\IPNService;
+
+class CustomIPNService extends IPNService
+{
+    public function processIPN(array $data): array
+    {
+        // Custom pre-processing
+        $result = parent::processIPN($data);
+        // Custom post-processing
+        return $result;
+    }
+}
+```
+
+Then bind it in a service provider:
+
+```php
+$this->app->singleton(IPNServiceInterface::class, CustomIPNService::class);
+```
+
 ## Security Considerations
 
 ### 1. IP Whitelisting
 
-Consider whitelisting PayFast IP addresses. Contact PayFast support to get their IP ranges.
+For additional security, consider whitelisting PayFast IP addresses in your custom controller:
 
 ```php
 public function handleIPN(Request $request)
@@ -180,7 +233,6 @@ public function handleIPN(Request $request)
         return response()->json(['error' => 'Unauthorized'], 403);
     }
 
-    // Process IPN
     return Payfast::handleIPN($request->all());
 }
 ```
@@ -194,22 +246,20 @@ public function handleIPN(Request $request)
 {
     $signature = $request->header('X-PayFast-Signature');
     $payload = $request->getContent();
-    
-    // Verify signature
+
     $expectedSignature = hash_hmac('sha256', $payload, config('payfast.secured_key'));
-    
+
     if (!hash_equals($expectedSignature, $signature)) {
         return response()->json(['error' => 'Invalid signature'], 403);
     }
-    
-    // Process IPN
+
     return Payfast::handleIPN($request->all());
 }
 ```
 
-### 3. CSRF Protection
+### 3. HTTPS
 
-Disable CSRF for IPN endpoint (already mentioned above).
+The IPN endpoint should always be served over HTTPS in production.
 
 ## Testing
 
@@ -218,7 +268,7 @@ Disable CSRF for IPN endpoint (already mentioned above).
 Using curl:
 
 ```bash
-curl -X POST https://yourdomain.com/payment/ipn \
+curl -X POST https://yourdomain.com/api/payfast/ipn \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "TXN123456",
@@ -231,7 +281,7 @@ curl -X POST https://yourdomain.com/payment/ipn \
 
 ### Using Postman
 
-1. Create a POST request to your IPN URL
+1. Create a POST request to `https://yourdomain.com/api/payfast/ipn`
 2. Set Content-Type to `application/json`
 3. Add IPN data in the body
 4. Send request
@@ -275,17 +325,18 @@ $payments = ProcessPayment::where('status', 'completed')
 
 ### IPN Not Received
 
-1. **Check PayFast Dashboard**: Verify IPN URL is configured correctly
-2. **Check Server Logs**: Look for incoming requests
-3. **Test Endpoint**: Use curl or Postman to test the endpoint
-4. **Check Firewall**: Ensure PayFast IPs are not blocked
-5. **Check SSL**: Ensure HTTPS is working correctly
+1. **Check `PAYFAST_CHECKOUT_URL`**: Verify it is set correctly in your `.env`
+2. **Verify route exists**: Run `php artisan route:list --name=payfast` to confirm the route is registered
+3. **Check Server Logs**: Look for incoming requests in your application logs
+4. **Test Endpoint**: Use curl or Postman to test the endpoint directly
+5. **Check Firewall**: Ensure PayFast IPs are not blocked
+6. **Check SSL**: Ensure HTTPS is working correctly
 
 ### Payment Not Updated
 
-1. **Check Logs**: Look for IPN processing errors
-2. **Verify Transaction ID**: Ensure transaction_id matches
-3. **Check Order Number**: Ensure order_no/basket_id matches
+1. **Check Logs**: Look for IPN processing errors in the `payfast` log channel
+2. **Verify Transaction ID**: Ensure `transaction_id` matches
+3. **Check Order Number**: Ensure `order_no`/`basket_id` matches
 4. **Check Status Mapping**: Verify status is being mapped correctly
 
 ### Duplicate Processing
@@ -296,51 +347,11 @@ The service includes idempotency checks. If you're still seeing duplicates:
 2. **Check Database**: Look for duplicate entries
 3. **Review Code**: Ensure idempotency logic is working
 
-## Advanced Usage
-
-### Custom IPN Handler
-
-You can extend the IPN service to add custom logic:
-
-```php
-use zfhassaan\Payfast\Services\IPNService;
-
-class CustomIPNService extends IPNService
-{
-    protected function afterPaymentUpdate($payment, $ipnData)
-    {
-        // Custom logic after payment update
-        // e.g., update order status, send SMS, etc.
-    }
-}
-```
-
-Then bind it in a service provider:
-
-```php
-$this->app->singleton(IPNServiceInterface::class, CustomIPNService::class);
-```
-
-### Event Listeners
-
-IPN processing dispatches events. You can listen to them:
-
-```php
-use zfhassaan\Payfast\Events\PaymentCompleted;
-use zfhassaan\Payfast\Events\PaymentFailed;
-
-Event::listen(PaymentCompleted::class, function ($event) {
-    // Handle payment completion
-    $payment = $event->payment;
-    // Update order, send notification, etc.
-});
-```
-
 ## Best Practices
 
-1. **Always log IPN requests** for debugging
-2. **Implement idempotency** to prevent duplicate processing
-3. **Validate IPN data** before processing
+1. **Use explicit `PAYFAST_CHECKOUT_URL`** in production environments
+2. **Always log IPN requests** for debugging (done automatically by the package)
+3. **Implement IP whitelisting** for additional security
 4. **Use HTTPS** for IPN endpoints
 5. **Handle errors gracefully** and return appropriate status codes
 6. **Monitor IPN logs** regularly
@@ -351,18 +362,3 @@ Event::listen(PaymentCompleted::class, function ($event) {
 - [Events and Listeners](Events-and-Listeners.md) - Understand event system
 - [Models and Database](Models-and-Database.md) - Database schema
 - [Troubleshooting](Troubleshooting.md) - Common issues and solutions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

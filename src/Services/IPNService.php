@@ -63,6 +63,8 @@ class IPNService implements IPNServiceInterface
                 'amount' => $amount,
                 'currency' => $currency,
                 'details' => $data,
+                'raw_payload' => json_encode($data),
+                'ip_address' => request()->ip(),
                 'received_at' => now(),
             ]);
 

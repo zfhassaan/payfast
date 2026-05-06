@@ -28,6 +28,7 @@ PAYFAST_SECURED_KEY=your_secured_key
 
 # Application Settings
 PAYFAST_RETURN_URL=https://yourdomain.com/payment/callback
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 PAYFAST_MODE=sandbox
 ```
 
@@ -36,6 +37,10 @@ PAYFAST_MODE=sandbox
 ```env
 # Store Configuration
 PAYFAST_STORE_ID=your_store_id
+
+# IPN (Instant Payment Notification) URL
+# If not set, auto-resolves to the package's built-in route: /api/payfast/ipn
+# PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
 
 # Transaction Verification
 PAYFAST_VERIFY_TRANSACTION=https://api.payfast.com/transaction/view
@@ -65,6 +70,7 @@ return [
     // Application Settings
     'store_id' => env('PAYFAST_STORE_ID', ''),
     'return_url' => env('PAYFAST_RETURN_URL', ''),
+    'checkout_url' => env('PAYFAST_CHECKOUT_URL', ''),
     'mode' => env('PAYFAST_MODE', 'sandbox'),
     'transaction_check' => env('PAYFAST_VERIFY_TRANSACTION', ''),
     
