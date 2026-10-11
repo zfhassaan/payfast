@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
  * PayFast Facade
  *
  * @method static \Illuminate\Http\JsonResponse getToken()
+ * @method static void setAuthToken(string $token)
  * @method static \Illuminate\Http\JsonResponse|null refreshToken(string $token, string $refreshToken)
  * @method static \Illuminate\Http\JsonResponse getOTPScreen(array $data)
  * @method static \Illuminate\Http\JsonResponse listBanks()
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static mixed payWithEasyPaisa(array $data)
  * @method static mixed payWithUPaisa(array $data)
  * @method static mixed payWithJazzCash(array $data)
+ * @method static \Illuminate\Http\JsonResponse JazzCashWallet(array $data)
+ * @method static \Illuminate\Http\JsonResponse wallet(array $data)
  * @method static string|bool validateWalletTransaction(array $data)
  * @method static bool|string walletTransactionInitiate(array $data)
  * @method static bool|string initiateTransaction(array $data)

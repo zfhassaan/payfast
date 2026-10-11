@@ -447,6 +447,28 @@ class PayFast implements PaymentInterface
     }
 
     /**
+     * Alias for JazzCash wallet payments (backward compatibility).
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function JazzCashWallet(array $data): mixed
+    {
+        return $this->payWithJazzCash($data);
+    }
+
+    /**
+     * Alias for general/EasyPaisa wallet payments (backward compatibility).
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function wallet(array $data): mixed
+    {
+        return $this->payWithEasyPaisa($data);
+    }
+
+    /**
      * Shared wallet entrypoint with Form Request + DTO validation.
      *
      * Bank codes come from config/payfast.php → wallets.* (publishable).
@@ -835,4 +857,8 @@ class PayFast implements PaymentInterface
             return Utility::returnError([], $e->getMessage(), 'IPN_EXCEPTION');
         }
     }
+}
+
+if (!class_exists(Payfast::class, false)) {
+    class_alias(PayFast::class, Payfast::class);
 }

@@ -16,6 +16,14 @@ interface PaymentInterface
     public function getToken(): JsonResponse;
 
     /**
+     * Set active authentication token.
+     *
+     * @param string $token
+     * @return void
+     */
+    public function setAuthToken(string $token): void;
+
+    /**
      * Refresh authentication token.
      *
      * @param string $token
@@ -110,6 +118,22 @@ interface PaymentInterface
      * @return JsonResponse
      */
     public function payWithJazzCash(array $data): JsonResponse;
+
+    /**
+     * Alias for JazzCash wallet payments (backward compatibility).
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function JazzCashWallet(array $data): mixed;
+
+    /**
+     * Alias for general/EasyPaisa wallet payments (backward compatibility).
+     *
+     * @param array<string, mixed> $data
+     * @return mixed
+     */
+    public function wallet(array $data): mixed;
 
     /**
      * Validate wallet transaction.

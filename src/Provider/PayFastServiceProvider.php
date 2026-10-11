@@ -179,6 +179,15 @@ class PayFastServiceProvider extends ServiceProvider
                 $app->make(IPNServiceInterface::class)
             );
         });
+
+        $this->app->singleton(PayFast::class, function ($app) {
+            return $app->make('payfast');
+        });
+
+        $this->app->alias(PayFast::class, \zfhassaan\Payfast\Interfaces\PaymentInterface::class);
+        $this->app->alias(PayFast::class, \zfhassaan\Payfast\Payfast::class);
+        $this->app->alias(PayFast::class, 'PayFast');
+        $this->app->alias(PayFast::class, 'Payfast');
     }
 
     /**
