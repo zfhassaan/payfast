@@ -3,13 +3,14 @@
   <!-- <h3 align="center">Payfast</h3> -->
 </p>
 
-[![Laravel Versions](https://img.shields.io/badge/laravel-9%20%7C%2010%20%7C%2011%20%7C%2012-FF2D20?style=flat-square&logo=laravel)](https://packagist.org/packages/zfhassaan/payfast)
+[![Laravel Versions](https://img.shields.io/badge/laravel-10%20to%2013-FF2D20?style=flat-square&logo=laravel)](https://packagist.org/packages/zfhassaan/payfast)
+[![PHP Versions](https://img.shields.io/badge/php-8.1%20to%208.5-777BB4?style=flat-square&logo=php)](https://packagist.org/packages/zfhassaan/payfast)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/zfhassaan/payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 [![MIT Licensed](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![Total Downloads](https://img.shields.io/packagist/dt/zfhassaan/payfast.svg?style=flat-square)](https://packagist.org/packages/zfhassaan/payfast)
 [![Code Style](https://img.shields.io/badge/code%20style-pint-orange?style=flat-square)](https://github.com/zfhassaan/payfast)
 [![Tests](https://img.shields.io/github/actions/workflow/status/zfhassaan/payfast/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/zfhassaan/payfast/actions/workflows/tests.yml)
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fzfhassaan%2Fpayfast&count_bg=%2379C83D&title_bg=%23555555&icon=webmoney.svg&icon_color=%23E7E7E7&title=Hits&edge_flat=false)](https://hits.seeyoufarm.com)
+
 
 <h4> Disclaimer </h4>
 This is unofficial Payfast API Payment Gateway. This repository  is only created to help developers in streamlining the integration process. You can Review the Official Payment Gateway <a href="https://gopayfast.com/docs/#preface" >here.</a> 
@@ -40,7 +41,7 @@ You can install the package via composer:
 composer require zfhassaan/payfast
 ```
 
-The service provider and facade alias are auto-discovered on Laravel 8+.
+The service provider and facade alias are auto-discovered on Laravel 10–13 (PHP 8.1–8.5).
 
 #### Publish configuration (recommended)
 

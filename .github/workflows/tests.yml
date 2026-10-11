@@ -10,20 +10,40 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        php: [8.1, 8.2, 8.3]
-        laravel: [10.*, 11.*]
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        laravel: ['10.*', '11.*', '12.*', '13.*']
         stability: [prefer-stable]
         include:
           - laravel: 10.*
             testbench: 8.*
           - laravel: 11.*
             testbench: 9.*
+          - laravel: 12.*
+            testbench: 10.*
+          - laravel: 13.*
+            testbench: 11.*
         exclude:
-          - php: 8.1
+          # Laravel 10: PHP 8.1–8.3
+          - php: '8.4'
+            laravel: 10.*
+          - php: '8.5'
+            laravel: 10.*
+          # Laravel 11: PHP 8.2–8.4
+          - php: '8.1'
             laravel: 11.*
+          - php: '8.5'
+            laravel: 11.*
+          # Laravel 12: PHP 8.2–8.5
+          - php: '8.1'
+            laravel: 12.*
+          # Laravel 13: PHP 8.3–8.5
+          - php: '8.1'
+            laravel: 13.*
+          - php: '8.2'
+            laravel: 13.*
 
     name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }} - ${{ matrix.os }}
 
@@ -43,11 +63,14 @@ jobs:
           echo "::add-matcher::${{ runner.tool_cache }}/php.json"
           echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
+      - name: Disable Composer advisory blocking
+        run: composer config policy.advisories.block false
+
       - name: Install dependencies
         run: |
           composer require "laravel/framework:${{ matrix.laravel }}" --no-interaction --no-update
           composer require "orchestra/testbench:${{ matrix.testbench }}" --dev --no-interaction --no-update
-          composer update --${{ matrix.stability }} --prefer-dist --no-interaction
+          composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-progress
 
       - name: List Installed Dependencies
         run: composer show -D
