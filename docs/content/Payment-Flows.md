@@ -38,7 +38,7 @@ The PayFast package supports multiple payment methods:
    ↓
 10. Payment Completed (status: completed)
    ↓
-11. PayFast sends IPN to checkout_url (POST /api/payfast/ipn)
+11. PayFast sends IPN to checkout_url (POST /payfast/ipn)
    → Package auto-processes: logs, updates status, dispatches events
 ```
 
@@ -191,6 +191,28 @@ $response = PayFast::payWithUPaisa($paymentData);
 // Same flow as EasyPaisa
 ```
 
+### JazzCash Payment
+
+```php
+$paymentData = [
+    'basket_id' => 'ORD-12345',
+    'txnamt' => 1000.00,
+    'customer_mobile_no' => '03001234567',
+    'customer_email_address' => 'customer@example.com',
+];
+
+$response = PayFast::payWithJazzCash($paymentData);
+$result = json_decode($response->getContent(), true);
+
+if ($result['status']) {
+    // Payment stored with payment_method: jazzcash, status: validated
+    $transactionId = $result['data']['transaction_id'];
+    $paymentId = $result['data']['payment_id'];
+
+    // Next: show OTP / call PayFast::walletTransactionInitiate(...)
+}
+```
+
 ## Payment Status Tracking
 
 The `ProcessPayment` model tracks payment status through the following states:
@@ -296,8 +318,11 @@ ProcessPayment::METHOD_UPAISA
 ProcessPayment::METHOD_JAZZCASH
 ```
 
+- Bank code: `1`
+- Account type id: `4`
 - Mobile wallet payment
-- Requires mobile number
+- Requires basket id, amount, and mobile number
+- Entry point: `PayFast::payWithJazzCash()`
 
 ## Console Command for Payment Checking
 

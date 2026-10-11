@@ -46,15 +46,20 @@ The PayFast Payment Gateway Package is a Laravel package that simplifies integra
 - **Mobile Wallets** - EasyPaisa, UPaisa, and JazzCash support
 - **OTP Verification** - Secure OTP-based customer validation
 - **3DS Authentication** - 3D Secure payment authentication
-- **IPN Support** - Instant Payment Notification webhook handling
+- **IPN Support** - Log-first webhooks, HMAC/IP allowlist, idempotent processing
+- **Form Requests** - Card, wallet, and IPN validation (`validateArray()` for facades)
+- **Mobile Wallets** - EasyPaisa, UPaisa, JazzCash (`payWithJazzCash`)
 - **Event System** - Event-driven architecture for extensibility
-- **Activity Logging** - Comprehensive payment activity tracking
+- **Activity Logging** - DB + file logging for payments and every IPN attempt
 - **Email Notifications** - Automated email notifications for payment events
+- **Publishable config** - `php artisan vendor:publish --tag=payfast`
 
 ## Installation
 
 ```bash
 composer require zfhassaan/payfast
+php artisan vendor:publish --tag=payfast
+php artisan migrate
 ```
 
 ## Requirements
@@ -68,20 +73,20 @@ composer require zfhassaan/payfast
 
 This is an **unofficial** PayFast API Payment Gateway package. This repository is created to help developers streamline the integration process. You can review the official PayFast documentation [here](https://gopayfast.com/docs/#preface).
 
-**Note**: This package provides comprehensive support for Direct Checkout, Hosted Checkout, Mobile Wallets (EasyPaisa, UPaisa), Subscriptions/Recurring Billing, Refunds, Transaction Voids, and Settlement Status checks. It is fully verified with a suite of 74 automated tests.
+**Note**: This package supports Direct Checkout, Hosted Checkout, Mobile Wallets (EasyPaisa, UPaisa, JazzCash), Subscriptions/Recurring Billing, Refunds, Voids, Settlement checks, and hardened IPN handling (log-first + idempotency).
 
 ## Stability & Quality
 
 The `zfhassaan/payfast` package is built with a focus on stability and comprehensive testing.
 
-- **100% Test Coverage**: Core orchestrator and individual services are fully tested.
-- **70+ Automated Tests**: Comprehensive suite covering all payment flows and edge cases.
-- **JsonResponse Standard**: All facade methods follow a consistent return type standard.
+- Service interfaces, repositories, DTOs, and Form Requests
+- Automated tests for wallets, IPN idempotency, middleware, and payment flows
+- Consistent `JsonResponse` facade return types
 
-**Current Test Status:**
+**Current Test Status (v1.0.10):**
 
 ```text
-OK (74 tests, 219 assertions)
+OK (103 tests, 301 assertions)
 ```
 
 ## Support

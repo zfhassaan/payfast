@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace zfhassaan\Payfast\Repositories;
 
+use Illuminate\Support\Collection;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
 
@@ -64,5 +65,35 @@ class ProcessPaymentRepository implements ProcessPaymentRepositoryInterface
     {
         return ProcessPayment::where('data_3ds_pares', $pares)->first();
     }
-}
 
+    /**
+     * @param  array<int, string>|null  $statuses
+     * @return Collection<int, ProcessPayment>
+     */
+    public function findForStatusCheck(?array $statuses = null, int $limit = 50): Collection
+    {
+        $query = ProcessPayment::query();
+
+        if ($statuses !== null && $statuses !== []) {
+            $query->whereIn('status', $statuses);
+        } else {
+            $query->whereIn('status', [
+                ProcessPayment::STATUS_PENDING,
+                ProcessPayment::STATUS_VALIDATED,
+                ProcessPayment::STATUS_OTP_VERIFIED,
+            ]);
+        }
+
+        return $query->limit($limit)->get();
+    }
+
+    public function markAsCompleted(ProcessPayment $payment): bool
+    {
+        return $payment->markAsCompleted();
+    }
+
+    public function markAsFailed(ProcessPayment $payment, ?string $reason = null): bool
+    {
+        return $payment->markAsFailed($reason);
+    }
+}

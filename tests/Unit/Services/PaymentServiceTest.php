@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use Carbon\Carbon;
 use Mockery;
 use Tests\TestCase;
 use zfhassaan\Payfast\DTOs\PaymentRequestDTO;
+use zfhassaan\Payfast\DTOs\WalletPaymentRequestDTO;
 use zfhassaan\Payfast\Services\ConfigService;
 use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
 use zfhassaan\Payfast\Services\PaymentService;
@@ -106,12 +106,12 @@ class PaymentServiceTest extends TestCase
 
     public function testValidateWalletTransactionReturnsSuccessResponse(): void
     {
-        $data = [
+        $dto = WalletPaymentRequestDTO::fromArray([
             'basket_id' => 'ORD-123',
             'txnamt' => 1000.00,
             'customer_mobile_no' => '03001234567',
             'customer_email_address' => 'test@example.com',
-        ];
+        ], WalletPaymentRequestDTO::BANK_CODE_EASYPAISA);
 
         $expectedResponse = [
             'code' => '00',
@@ -121,21 +121,68 @@ class PaymentServiceTest extends TestCase
         $this->httpClient
             ->shouldReceive('post')
             ->once()
+            ->with(
+                Mockery::pattern('/customer\/validate$/'),
+                Mockery::on(function (array $payload) {
+                    return ($payload['bank_code'] ?? null) === '13'
+                        && ($payload['account_type_id'] ?? null) === '4';
+                }),
+                Mockery::on(function (array $headers) {
+                    return ($headers['Content-Type'] ?? null) === 'application/x-www-form-urlencoded'
+                        && !isset($headers['Authorization']);
+                })
+            )
             ->andReturn($expectedResponse);
 
-        $result = $this->paymentService->validateWalletTransaction($data, 13, 4);
+        $result = $this->paymentService->validateWalletTransaction($dto);
 
         $this->assertIsArray($result);
         $this->assertEquals('00', $result['code']);
     }
 
+    public function testValidateWalletTransactionSendsBearerTokenForJazzCash(): void
+    {
+        $dto = WalletPaymentRequestDTO::fromArray([
+            'basket_id' => 'ORD-JC',
+            'txnamt' => 750.00,
+            'customer_mobile_no' => '03001234567',
+            'customer_email_address' => 'jazz@example.com',
+            'order_date' => '2026-03-01',
+        ], WalletPaymentRequestDTO::BANK_CODE_JAZZCASH);
+
+        $this->httpClient
+            ->shouldReceive('post')
+            ->once()
+            ->with(
+                Mockery::pattern('/customer\/validate$/'),
+                Mockery::on(function (array $payload) {
+                    return ($payload['bank_code'] ?? null) === '1'
+                        && ($payload['account_type_id'] ?? null) === '4'
+                        && ($payload['order_date'] ?? null) === '2026-03-01';
+                }),
+                Mockery::on(function (array $headers) {
+                    return ($headers['Authorization'] ?? null) === 'Bearer jazz_auth_token';
+                })
+            )
+            ->andReturn([
+                'code' => '00',
+                'transaction_id' => 'TXN-JC-1',
+            ]);
+
+        $result = $this->paymentService->validateWalletTransaction($dto, 'jazz_auth_token');
+
+        $this->assertEquals('00', $result['code']);
+        $this->assertEquals('TXN-JC-1', $result['transaction_id']);
+    }
+
     public function testInitiateWalletTransactionReturnsSuccessResponse(): void
     {
-        $data = [
+        $dto = WalletPaymentRequestDTO::fromArray([
             'basket_id' => 'ORD-123',
             'txnamt' => 1000.00,
+            'customer_mobile_no' => '03001234567',
             'transaction_id' => 'TXN-123',
-        ];
+        ], WalletPaymentRequestDTO::BANK_CODE_EASYPAISA);
 
         $expectedResponse = [
             'code' => '00',
@@ -147,7 +194,7 @@ class PaymentServiceTest extends TestCase
             ->once()
             ->andReturn($expectedResponse);
 
-        $result = $this->paymentService->initiateWalletTransaction($data, 'auth_token');
+        $result = $this->paymentService->initiateWalletTransaction($dto, 'auth_token');
 
         $this->assertIsArray($result);
         $this->assertEquals('00', $result['code']);
@@ -159,4 +206,3 @@ class PaymentServiceTest extends TestCase
         parent::tearDown();
     }
 }
-

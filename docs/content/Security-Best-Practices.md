@@ -78,58 +78,38 @@ $paymentData = [
 
 ## IPN Security
 
-### IP Whitelisting
+Built-in middleware (v1.0.8+) handles IP allowlisting and HMAC verification. Prefer config over custom controllers.
 
-Whitelist PayFast IP addresses:
+### Recommended production `.env`
 
-```php
-public function handleIPN(Request $request)
-{
-    $allowedIPs = [
-        '203.0.113.0', // PayFast IP 1
-        '203.0.113.1', // PayFast IP 2
-        // Get actual IPs from PayFast support
-    ];
-
-    if (!in_array($request->ip(), $allowedIPs)) {
-        Log::warning('IPN from unauthorized IP', ['ip' => $request->ip()]);
-        return response()->json(['error' => 'Unauthorized'], 403);
-    }
-
-    return Payfast::handleIPN($request->all());
-}
+```env
+PAYFAST_IPN_SECRET=your-shared-hmac-secret
+PAYFAST_IPN_ALLOWED_IPS=203.0.113.10,198.51.100.0/24
+PAYFAST_IPN_SIGNATURE_HEADER=X-PayFast-Signature
+PAYFAST_IDEMPOTENCY_ENABLED=true
 ```
 
-### Signature Verification
+Pipeline: `payfast.ipn.log` (persist every request) → `payfast.ipn` (verify). Rejected attempts are stored with `processing_status=rejected`.
 
-Verify IPN signatures if provided:
+### HMAC
 
-```php
-public function handleIPN(Request $request)
-{
-    $signature = $request->header('X-PayFast-Signature');
-    $payload = $request->getContent();
-    $expectedSignature = hash_hmac('sha256', $payload, config('payfast.secured_key'));
-
-    if (!hash_equals($expectedSignature, $signature)) {
-        return response()->json(['error' => 'Invalid signature'], 403);
-    }
-
-    return Payfast::handleIPN($request->all());
-}
+```text
+X-PayFast-Signature: hash_hmac('sha256', raw_request_body, PAYFAST_IPN_SECRET)
 ```
 
-### Disable CSRF for IPN
+Use the **raw body** (not a re-encoded JSON object) so signatures match.
 
-Add IPN route to CSRF exceptions:
+### IP allowlist
 
-```php
-// app/Http/Middleware/VerifyCsrfToken.php
-protected $except = [
-    'payment/ipn',
-    'api/payment/ipn',
-];
-```
+Comma-separated IPs or CIDR ranges in `PAYFAST_IPN_ALLOWED_IPS`. Leave empty only for local/sandbox.
+
+### CSRF
+
+The package route uses the `api` middleware group when `PAYFAST_IPN_USE_API_MIDDLEWARE=true`, so CSRF does not apply. If you expose a custom web route, exclude it from CSRF yourself.
+
+### Idempotency
+
+Keep `PAYFAST_IDEMPOTENCY_ENABLED=true` so duplicate gateway retries do not double-update payments or re-dispatch events. See [IPN Handling](IPN-Handling).
 
 ## Data Protection
 

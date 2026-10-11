@@ -104,6 +104,14 @@ interface PaymentInterface
     public function payWithUPaisa(array $data): JsonResponse;
 
     /**
+     * Pay with JazzCash wallet.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function payWithJazzCash(array $data): JsonResponse;
+
+    /**
      * Validate wallet transaction.
      *
      * @param array<string, mixed> $data

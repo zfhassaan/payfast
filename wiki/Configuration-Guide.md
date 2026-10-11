@@ -2,31 +2,56 @@
 
 This guide covers all configuration options available in the PayFast package.
 
-## Configuration File
-
-The configuration file is located at `config/payfast.php` after publishing. You can publish it using:
+## Publish assets
 
 ```bash
+# Everything most apps need (config, migrations, emails, logging stub, env example)
+php artisan vendor:publish --tag=payfast
+
+# Or selectively:
 php artisan vendor:publish --tag=payfast-config
+php artisan vendor:publish --tag=payfast-migrations
+php artisan vendor:publish --tag=payfast-email-templates
+php artisan vendor:publish --tag=payfast-logging
+php artisan vendor:publish --tag=payfast-env
 ```
 
-## Environment Variables
+| Tag | Destination |
+|-----|-------------|
+| `payfast` | Config + migrations + email views + logging stub + `.env.payfast.example` |
+| `payfast-config` | `config/payfast.php` |
+| `payfast-migrations` | `database/migrations/*` |
+| `payfast-email-templates` | `resources/views/vendor/payfast/emails` |
+| `payfast-logging` | `config/payfast-logging-channel.php` |
+| `payfast-env` | `.env.payfast.example` |
 
-All configuration values are loaded from your `.env` file. Here's a complete list:
+After `payfast-env`, copy relevant keys from `.env.payfast.example` into `.env`.
+
+If you publish migrations into your app, set `PAYFAST_LOAD_MIGRATIONS=false` to avoid double-loading.
+
+## Configuration File
+
+Published file: `config/payfast.php`.
+
+You can customize:
+
+- API / auth / mode
+- Whether package migrations & routes auto-load
+- Wallet `bank_code` mappings (JazzCash / EasyPaisa / UPaisa)
+- Email templates & subjects
+- IPN HMAC secret + IP allowlist
+- Route middleware / prefix
+
+## Environment Variables
 
 ### Required Configuration
 
 ```env
-# API URLs
 PAYFAST_API_URL=https://api.payfast.com
 PAYFAST_SANDBOX_URL=https://sandbox.payfast.com
-
-# Authentication
 PAYFAST_GRANT_TYPE=client_credentials
 PAYFAST_MERCHANT_ID=your_merchant_id
 PAYFAST_SECURED_KEY=your_secured_key
-
-# Application Settings
 PAYFAST_RETURN_URL=https://yourdomain.com/payment/callback
 PAYFAST_MODE=sandbox
 ```
@@ -34,55 +59,44 @@ PAYFAST_MODE=sandbox
 ### Optional Configuration
 
 ```env
-# Store Configuration
 PAYFAST_STORE_ID=your_store_id
+PAYFAST_CHECKOUT_URL=
+PAYFAST_VERIFY_TRANSACTION=
 
-# Transaction Verification
-PAYFAST_VERIFY_TRANSACTION=https://api.payfast.com/transaction/view
+PAYFAST_LOAD_MIGRATIONS=true
+PAYFAST_ROUTES_ENABLED=true
+PAYFAST_ROUTE_PREFIX=
 
-# Email Notifications
-PAYFAST_ADMIN_EMAILS=admin@example.com,admin2@example.com
-PAYFAST_EMAIL_SUBJECT_COMPLETION=Payment Completed Successfully
-PAYFAST_EMAIL_SUBJECT_ADMIN=New Payment Completed
-PAYFAST_EMAIL_SUBJECT_FAILURE=Payment Failed
+PAYFAST_WALLET_JAZZCASH_BANK_CODE=1
+PAYFAST_WALLET_EASYPAISA_BANK_CODE=13
+PAYFAST_WALLET_UPAISA_BANK_CODE=14
+PAYFAST_WALLET_ACCOUNT_TYPE_ID=4
+
+PAYFAST_ADMIN_EMAILS=admin@example.com
+PAYFAST_IPN_SECRET=
+PAYFAST_IPN_ALLOWED_IPS=
+PAYFAST_IPN_USE_API_MIDDLEWARE=true
+PAYFAST_IDEMPOTENCY_ENABLED=true
+PAYFAST_LOG_HEADERS=true
+PAYFAST_LOG_CHANNEL=payfast
+PAYFAST_LOG_LEVEL=debug
 ```
+
+## IPN, idempotency & request logging
+
+| Key | Purpose |
+|-----|---------|
+| `ipn.secret` / `PAYFAST_IPN_SECRET` | HMAC-SHA256 of raw body |
+| `ipn.allowed_ips` / `PAYFAST_IPN_ALLOWED_IPS` | IP or CIDR allowlist |
+| `idempotency.enabled` | Duplicate deliveries → `ALREADY_PROCESSED` |
+| `request_logging.log_headers` | Persist redacted headers on IPN rows |
+| `routes.middleware` | Default: `api`, `payfast.ipn.log`, `payfast.ipn` |
+
+See [IPN Handling](IPN-Handling) for the full webhook pipeline.
 
 ## Configuration Structure
 
-The configuration file structure:
-
-```php
-return [
-    // API Configuration
-    'api_url' => env('PAYFAST_API_URL', ''),
-    'sandbox_api_url' => env('PAYFAST_SANDBOX_URL', ''),
-    
-    // Authentication
-    'grant_type' => env('PAYFAST_GRANT_TYPE', ''),
-    'merchant_id' => env('PAYFAST_MERCHANT_ID', ''),
-    'secured_key' => env('PAYFAST_SECURED_KEY', ''),
-    
-    // Application Settings
-    'store_id' => env('PAYFAST_STORE_ID', ''),
-    'return_url' => env('PAYFAST_RETURN_URL', ''),
-    'mode' => env('PAYFAST_MODE', 'sandbox'),
-    'transaction_check' => env('PAYFAST_VERIFY_TRANSACTION', ''),
-    
-    // Email Configuration
-    'admin_emails' => env('PAYFAST_ADMIN_EMAILS', ''),
-    'email_templates' => [
-        'status_notification' => 'payfast::emails.status-notification',
-        'payment_completion' => 'payfast::emails.payment-completion',
-        'admin_notification' => 'payfast::emails.admin-notification',
-        'payment_failure' => 'payfast::emails.payment-failure',
-    ],
-    'email_subjects' => [
-        'payment_completion' => env('PAYFAST_EMAIL_SUBJECT_COMPLETION', 'Payment Completed Successfully'),
-        'admin_notification' => env('PAYFAST_EMAIL_SUBJECT_ADMIN', 'New Payment Completed'),
-        'payment_failure' => env('PAYFAST_EMAIL_SUBJECT_FAILURE', 'Payment Failed'),
-    ],
-];
-```
+See the published `config/payfast.php` for the full annotated structure (API, routes, wallets, email, IPN, logging).
 
 ## Mode Configuration
 
@@ -278,7 +292,6 @@ php artisan tinker
 - [Getting Started](Getting-Started.md) - Start using the package
 - [Payment Flows](Payment-Flows.md) - Understand payment processing
 - [API Reference](API-Reference.md) - Explore available methods
-
 
 
 

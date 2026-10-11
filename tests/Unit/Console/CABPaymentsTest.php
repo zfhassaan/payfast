@@ -10,7 +10,7 @@ use Tests\TestCase;
 use zfhassaan\Payfast\Console\CABPayments;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ActivityLogRepositoryInterface;
-use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
+use zfhassaan\Payfast\Repositories\ProcessPaymentRepository;
 use zfhassaan\Payfast\Services\ConfigService;
 use zfhassaan\Payfast\Services\Contracts\EmailNotificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
@@ -23,6 +23,7 @@ class CABPaymentsTest extends TestCase
     private ConfigService $configService;
     private ActivityLogRepositoryInterface $activityLogRepository;
     private EmailNotificationServiceInterface $emailNotificationService;
+    private ProcessPaymentRepository $paymentRepository;
 
     protected function setUp(): void
     {
@@ -32,29 +33,33 @@ class CABPaymentsTest extends TestCase
         $this->configService = new ConfigService();
         $this->activityLogRepository = Mockery::mock(ActivityLogRepositoryInterface::class);
         $this->emailNotificationService = Mockery::mock(EmailNotificationServiceInterface::class);
+        $this->paymentRepository = new ProcessPaymentRepository();
 
-        // Register the command manually for testing
-        $command = new \zfhassaan\Payfast\Console\CABPayments(
-            $this->httpClient,
-            $this->configService,
-            $this->activityLogRepository,
-            $this->emailNotificationService
-        );
-        
-        $this->app->instance(\zfhassaan\Payfast\Console\CABPayments::class, $command);
-        
-        // Register command in the application
+        $command = $this->makeCommand();
+
+        $this->app->instance(CABPayments::class, $command);
+
         $kernel = $this->app->make(\Illuminate\Contracts\Console\Kernel::class);
         if (method_exists($kernel, 'registerCommand')) {
             $kernel->registerCommand($command);
         } else {
-            // Fallback: add directly to artisan
             $this->app['artisan']->add($command);
         }
 
         config([
             'payfast.transaction_check' => 'https://api.payfast.test/',
         ]);
+    }
+
+    private function makeCommand(): CABPayments
+    {
+        return new CABPayments(
+            $this->httpClient,
+            $this->configService,
+            $this->activityLogRepository,
+            $this->emailNotificationService,
+            $this->paymentRepository
+        );
     }
 
     public function testCommandProcessesPendingPayments(): void
@@ -83,21 +88,14 @@ class CABPaymentsTest extends TestCase
             ->shouldReceive('sendAdminNotificationEmail')
             ->times(3);
 
-        $command = new CABPayments(
-            $this->httpClient,
-            $this->configService,
-            $this->activityLogRepository,
-            $this->emailNotificationService
-        );
-        
-        // Set up command input/output for testing
+        $command = $this->makeCommand();
         $input = new \Symfony\Component\Console\Input\ArrayInput([], $command->getDefinition());
         $output = new \Illuminate\Console\OutputStyle($input, new \Symfony\Component\Console\Output\BufferedOutput());
         $command->setInput($input);
         $command->setOutput($output);
 
         $result = $command->handle();
-        
+
         $this->assertEquals(0, $result);
     }
 
@@ -124,22 +122,15 @@ class CABPaymentsTest extends TestCase
             ->shouldReceive('sendAdminNotificationEmail')
             ->once();
 
-        $command = new CABPayments(
-            $this->httpClient,
-            $this->configService,
-            $this->activityLogRepository,
-            $this->emailNotificationService
-        );
-        
+        $command = $this->makeCommand();
         $input = new \Symfony\Component\Console\Input\ArrayInput(['--status' => 'otp_verified'], $command->getDefinition());
         $output = new \Illuminate\Console\OutputStyle($input, new \Symfony\Component\Console\Output\BufferedOutput());
         $command->setInput($input);
         $command->setOutput($output);
 
         $result = $command->handle();
-        
+
         $this->assertEquals(0, $result);
-        $this->assertIsInt($result);
     }
 
     public function testCommandRespectsLimit(): void
@@ -165,42 +156,28 @@ class CABPaymentsTest extends TestCase
             ->shouldReceive('sendAdminNotificationEmail')
             ->times(5);
 
-        $command = new CABPayments(
-            $this->httpClient,
-            $this->configService,
-            $this->activityLogRepository,
-            $this->emailNotificationService
-        );
-        
+        $command = $this->makeCommand();
         $input = new \Symfony\Component\Console\Input\ArrayInput(['--limit' => 5], $command->getDefinition());
         $output = new \Illuminate\Console\OutputStyle($input, new \Symfony\Component\Console\Output\BufferedOutput());
         $command->setInput($input);
         $command->setOutput($output);
 
         $result = $command->handle();
-        
+
         $this->assertEquals(0, $result);
-        $this->assertIsInt($result);
     }
 
     public function testCommandHandlesNoPayments(): void
     {
-        $command = new CABPayments(
-            $this->httpClient,
-            $this->configService,
-            $this->activityLogRepository,
-            $this->emailNotificationService
-        );
-        
+        $command = $this->makeCommand();
         $input = new \Symfony\Component\Console\Input\ArrayInput([], $command->getDefinition());
         $output = new \Illuminate\Console\OutputStyle($input, new \Symfony\Component\Console\Output\BufferedOutput());
         $command->setInput($input);
         $command->setOutput($output);
 
         $result = $command->handle();
-        
+
         $this->assertEquals(0, $result);
-        $this->assertIsInt($result);
     }
 
     protected function tearDown(): void
@@ -209,4 +186,3 @@ class CABPaymentsTest extends TestCase
         parent::tearDown();
     }
 }
-

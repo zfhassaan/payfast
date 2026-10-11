@@ -12,6 +12,8 @@ use zfhassaan\Payfast\Events\PaymentFailed;
 use zfhassaan\Payfast\Events\PaymentInitiated;
 use zfhassaan\Payfast\Events\PaymentValidated;
 use zfhassaan\Payfast\Listeners\LogPaymentActivity;
+use zfhassaan\Payfast\Models\ActivityLog;
+use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ActivityLogRepositoryInterface;
 
 class LogPaymentActivityTest extends TestCase
@@ -30,14 +32,16 @@ class LogPaymentActivityTest extends TestCase
     public function testHandlePaymentInitiated(): void
     {
         $logChannel = Mockery::mock();
-        $logChannel->shouldReceive('info')
-            ->once()
-            ->with('Payment Initiated', Mockery::type('array'));
+        $logChannel->shouldReceive('info')->once()->with('Payment Initiated', Mockery::type('array'));
 
-        Log::shouldReceive('channel')
+        Log::shouldReceive('channel')->once()->with('payfast')->andReturn($logChannel);
+
+        $this->activityLogRepository
+            ->shouldReceive('create')
             ->once()
-            ->with('payfast')
-            ->andReturn($logChannel);
+            ->with(Mockery::on(fn (array $data) => $data['status'] === ProcessPayment::STATUS_PENDING
+                && $data['order_no'] === 'ORD-123'))
+            ->andReturn(new ActivityLog());
 
         $event = new PaymentInitiated(
             ['orderNumber' => 'ORD-123'],
@@ -45,23 +49,23 @@ class LogPaymentActivityTest extends TestCase
         );
 
         $this->listener->handlePaymentInitiated($event);
-        
-        // Verify the event was handled without errors
-        $this->assertInstanceOf(PaymentInitiated::class, $event);
+
         $this->assertEquals('ORD-123', $event->paymentData['orderNumber']);
     }
 
     public function testHandlePaymentValidated(): void
     {
         $logChannel = Mockery::mock();
-        $logChannel->shouldReceive('info')
-            ->once()
-            ->with('Payment Validated', Mockery::type('array'));
+        $logChannel->shouldReceive('info')->once()->with('Payment Validated', Mockery::type('array'));
 
-        Log::shouldReceive('channel')
+        Log::shouldReceive('channel')->once()->with('payfast')->andReturn($logChannel);
+
+        $this->activityLogRepository
+            ->shouldReceive('create')
             ->once()
-            ->with('payfast')
-            ->andReturn($logChannel);
+            ->with(Mockery::on(fn (array $data) => $data['status'] === ProcessPayment::STATUS_VALIDATED
+                && $data['transaction_id'] === 'TXN-123'))
+            ->andReturn(new ActivityLog());
 
         $event = new PaymentValidated(
             ['orderNumber' => 'ORD-123'],
@@ -69,24 +73,22 @@ class LogPaymentActivityTest extends TestCase
         );
 
         $this->listener->handlePaymentValidated($event);
-        
-        // Verify the event was handled without errors
-        $this->assertInstanceOf(PaymentValidated::class, $event);
-        $this->assertEquals('ORD-123', $event->paymentData['orderNumber']);
+
         $this->assertEquals('TXN-123', $event->validationResponse['transaction_id']);
     }
 
     public function testHandlePaymentCompleted(): void
     {
         $logChannel = Mockery::mock();
-        $logChannel->shouldReceive('info')
-            ->once()
-            ->with('Payment Completed', Mockery::type('array'));
+        $logChannel->shouldReceive('info')->once()->with('Payment Completed', Mockery::type('array'));
 
-        Log::shouldReceive('channel')
+        Log::shouldReceive('channel')->once()->with('payfast')->andReturn($logChannel);
+
+        $this->activityLogRepository
+            ->shouldReceive('create')
             ->once()
-            ->with('payfast')
-            ->andReturn($logChannel);
+            ->with(Mockery::on(fn (array $data) => $data['status'] === ProcessPayment::STATUS_COMPLETED))
+            ->andReturn(new ActivityLog());
 
         $event = new PaymentCompleted(
             ['transaction_id' => 'TXN-123'],
@@ -94,24 +96,22 @@ class LogPaymentActivityTest extends TestCase
         );
 
         $this->listener->handlePaymentCompleted($event);
-        
-        // Verify the event was handled without errors
-        $this->assertInstanceOf(PaymentCompleted::class, $event);
-        $this->assertEquals('TXN-123', $event->transactionData['transaction_id']);
+
         $this->assertEquals('00', $event->response['code']);
     }
 
     public function testHandlePaymentFailed(): void
     {
         $logChannel = Mockery::mock();
-        $logChannel->shouldReceive('error')
-            ->once()
-            ->with('Payment Failed', Mockery::type('array'));
+        $logChannel->shouldReceive('error')->once()->with('Payment Failed', Mockery::type('array'));
 
-        Log::shouldReceive('channel')
+        Log::shouldReceive('channel')->once()->with('payfast')->andReturn($logChannel);
+
+        $this->activityLogRepository
+            ->shouldReceive('create')
             ->once()
-            ->with('payfast')
-            ->andReturn($logChannel);
+            ->with(Mockery::on(fn (array $data) => $data['status'] === ProcessPayment::STATUS_FAILED))
+            ->andReturn(new ActivityLog());
 
         $event = new PaymentFailed(
             ['orderNumber' => 'ORD-123'],
@@ -120,12 +120,8 @@ class LogPaymentActivityTest extends TestCase
         );
 
         $this->listener->handlePaymentFailed($event);
-        
-        // Verify the event was handled without errors
-        $this->assertInstanceOf(PaymentFailed::class, $event);
-        $this->assertEquals('ORD-123', $event->paymentData['orderNumber']);
+
         $this->assertEquals('14', $event->errorCode);
-        $this->assertEquals('Invalid card details', $event->errorMessage);
     }
 
     protected function tearDown(): void
@@ -134,4 +130,3 @@ class LogPaymentActivityTest extends TestCase
         parent::tearDown();
     }
 }
-

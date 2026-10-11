@@ -75,6 +75,27 @@ class ProcessPaymentRepositoryTest extends TestCase
         $this->assertEquals('ORD-123', $found->orderNo);
     }
 
+    public function testFindForStatusCheckDefaultsToPendingStates(): void
+    {
+        ProcessPayment::factory()->create(['status' => ProcessPayment::STATUS_PENDING]);
+        ProcessPayment::factory()->create(['status' => ProcessPayment::STATUS_COMPLETED]);
+
+        $found = $this->repository->findForStatusCheck(null, 50);
+
+        $this->assertCount(1, $found);
+        $this->assertEquals(ProcessPayment::STATUS_PENDING, $found->first()->status);
+    }
+
+    public function testMarkAsCompletedViaRepository(): void
+    {
+        $payment = ProcessPayment::factory()->create([
+            'status' => ProcessPayment::STATUS_VALIDATED,
+        ]);
+
+        $this->assertTrue($this->repository->markAsCompleted($payment));
+        $this->assertEquals(ProcessPayment::STATUS_COMPLETED, $payment->fresh()->status);
+    }
+
     public function testFindByPares(): void
     {
         $payment = ProcessPayment::factory()->create([

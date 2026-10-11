@@ -29,5 +29,12 @@ interface IPNServiceInterface
      * @return array<string, mixed>
      */
     public function updatePaymentStatus(array $ipnData): array;
+
+    /**
+     * Mark a previously persisted inbound IPN log as rejected.
+     *
+     * @param array<string, mixed> $details
+     */
+    public function markRejected(?int $logId, string $reason, array $details = []): void;
 }
 

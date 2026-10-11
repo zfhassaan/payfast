@@ -29,7 +29,7 @@ Configuration: E:\laragon\www\pkg\phpunit.xml
 ......... 74 / 74 (100%)
 
 Time: 00:06.709, Memory: 74.00 MB
-OK (74 tests, 219 assertions)
+OK (103 tests, 301 assertions)
 \`\`\`
 
 ## Test Structure

@@ -19,7 +19,7 @@ This Package only covers direct checkout and hosted checkout process. There's no
 
 #### About
 This document contains detailed explanation about how to integrate with Payfast API's Based transactions functionality. This document also contains the details for online transaction. 
-<small>v1.0.0</small>
+<small>v1.0.10</small>
 
 #### Intended Audience 
 This document is for merchants acquires and developers who want to integrate with Payfast to perform a API's based Transaction. 
@@ -34,42 +34,70 @@ This section contains the details of all APIs provided by Payfast. These APIs co
 Merchants will be registered on PayFast prior to integration. After merchant sign up for PayFast account, following two unique values will be provided to merchant to operate: *Merchant_ID* and *Secured_key* , these keys are used to get a one-time authentication token, which is used to authenticate payment requests to the "PayFast"payment gateway.
 
 #### Installation
-You can install the package via composer 
+You can install the package via composer:
 
-````
+```bash
 composer require zfhassaan/payfast
-````
+```
+
+The service provider and facade alias are auto-discovered on Laravel 8+.
+
+#### Publish configuration (recommended)
+
+Publish only what you need, or everything common under the umbrella tag:
+
+```bash
+# Recommended: config + migrations + email templates + logging stub + .env example
+php artisan vendor:publish --tag=payfast
+
+# Or publish pieces:
+php artisan vendor:publish --tag=payfast-config
+php artisan vendor:publish --tag=payfast-migrations
+php artisan vendor:publish --tag=payfast-email-templates
+php artisan vendor:publish --tag=payfast-logging
+php artisan vendor:publish --tag=payfast-env
+php artisan vendor:publish --tag=payfast-command
+php artisan vendor:publish --tag=payfast-tests
+```
+
+| Tag | Publishes to |
+|-----|----------------|
+| `payfast` | Config, migrations, email views, logging stub, `.env.payfast.example` |
+| `payfast-config` | `config/payfast.php` |
+| `payfast-migrations` | `database/migrations/*payfast*` |
+| `payfast-email-templates` | `resources/views/vendor/payfast/emails` |
+| `payfast-logging` | `config/payfast-logging-channel.php` (merge into `logging.php`) |
+| `payfast-env` | `.env.payfast.example` at project root |
+| `payfast-command` | Customizable console command stub |
+| `payfast-tests` | Package test suite into your app |
+
+After publishing config, edit `config/payfast.php` (wallets, IPN, routes, emails) and copy vars from `.env.payfast.example` into `.env`.
+
+If you publish migrations, set `PAYFAST_LOAD_MIGRATIONS=false` so they are not loaded twice.
 
 #### Set .env configurations
 
-```
+```env
 PAYFAST_API_URL=
 PAYFAST_SANDBOX_URL=
-PAYFAST_GRANT_TYPE=
+PAYFAST_GRANT_TYPE=client_credentials
 PAYFAST_MERCHANT_ID=
-PAYFAST_MODE=
+PAYFAST_MODE=sandbox
 PAYFAST_SECURED_KEY=
 PAYFAST_RETURN_URL=
-```
 
-#### configuration
-Add These files in `app/config.php`
+# Optional IPN hardening (v1.0.8+)
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/payfast/ipn
+PAYFAST_IPN_SECRET=
+PAYFAST_IPN_ALLOWED_IPS=
+PAYFAST_IPN_SIGNATURE_HEADER=X-PayFast-Signature
+PAYFAST_IDEMPOTENCY_ENABLED=true
+PAYFAST_LOG_HEADERS=true
 
-```php 
-  /*
-    * Package Service Providers...
-    */
-
-  \zfhassaan\Payfast\PayfastServiceProvider::class,
-```
-
-
-and also in alias in `app/config.php`
-
-```php 
-  'aliases' => Facade::defaultAliases()->merge([
-        'Payfast' => \zfhassaan\Payfast\Facade\Payfast::class,
-    ])->toArray(),
+# Optional wallet bank-code overrides
+PAYFAST_WALLET_JAZZCASH_BANK_CODE=1
+PAYFAST_WALLET_EASYPAISA_BANK_CODE=13
+PAYFAST_WALLET_UPAISA_BANK_CODE=14
 ```
 
 #### Steps

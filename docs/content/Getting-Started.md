@@ -178,6 +178,23 @@ public function payWithUPaisa(Request $request)
 }
 ```
 
+### JazzCash Payment
+
+```php
+public function payWithJazzCash(Request $request)
+{
+    $paymentData = [
+        'basket_id' => 'ORD-' . time(),
+        'txnamt' => 1000.00,
+        'customer_mobile_no' => '03001234567',
+        'customer_email_address' => 'customer@example.com',
+    ];
+
+    $response = PayFast::payWithJazzCash($paymentData);
+    // Same flow as EasyPaisa / UPaisa (bank_code=1)
+}
+```
+
 ## Complete Example Controller
 
 Here's a complete example controller:

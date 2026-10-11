@@ -34,82 +34,125 @@ class PayFastServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap the application Services.
-     *
-     * @return void
      */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            // Publish config file to the main config folder
-            $this->publishes([
-                __DIR__ . '/../../config/config.php' => config_path('payfast.php'),
-            ], 'payfast-config');
+            $this->registerPublishes();
 
-            // Publish Migrations to the database migration
-            $this->publishes([
-                __DIR__ . '/../database/migrations/2023_08_14_071018_payfast_create_process_payments_table_in_payfast.php' => database_path('migrations'),
-                __DIR__ . '/../database/migrations/2024_02_02_194203_payfast_create_activity_logs_table.php' => database_path('migrations'),
-                __DIR__ . '/../database/migrations/2024_02_02_195511_payfast_create_ipn_table.php' => database_path('migrations'),
-                __DIR__ . '/../database/migrations/2025_01_15_000001_add_status_and_pares_to_process_payments.php' => database_path('migrations'),
-                __DIR__ . '/../database/migrations/2025_05_06_000001_add_raw_payload_and_ip_to_ipn_table.php' => database_path('migrations'),
-            ], 'payfast-migrations');
-
-            // Publish email templates
-            $this->publishes([
-                __DIR__ . '/../resources/views/emails' => resource_path('views/vendor/payfast/emails'),
-            ], 'payfast-email-templates');
-
-            // Publish console command (stub for customization)
-            $this->publishes([
-                __DIR__ . '/../Console/CABPayments.php.stub' => app_path('Console/Commands/PayfastCheckPendingPayments.php'),
-            ], 'payfast-command');
-
-            // Publish tests
-            $this->publishes([
-                // Base TestCase
-                __DIR__ . '/../../tests/TestCase.php' => base_path('tests/PayFast/TestCase.php'),
-                
-                // Unit Tests
-                __DIR__ . '/../../tests/Unit/TestCase.php' => base_path('tests/Unit/PayFast/TestCase.php'),
-                __DIR__ . '/../../tests/Unit/PayFastTest.php' => base_path('tests/Unit/PayFast/PayFastTest.php'),
-                __DIR__ . '/../../tests/Unit/Console/CABPaymentsTest.php' => base_path('tests/Unit/PayFast/Console/CABPaymentsTest.php'),
-                __DIR__ . '/../../tests/Unit/DTOs/PaymentRequestDTOTest.php' => base_path('tests/Unit/PayFast/DTOs/PaymentRequestDTOTest.php'),
-                __DIR__ . '/../../tests/Unit/Events/PaymentEventsTest.php' => base_path('tests/Unit/PayFast/Events/PaymentEventsTest.php'),
-                __DIR__ . '/../../tests/Unit/Helpers/UtilityTest.php' => base_path('tests/Unit/PayFast/Helpers/UtilityTest.php'),
-                __DIR__ . '/../../tests/Unit/Listeners/LogPaymentActivityTest.php' => base_path('tests/Unit/PayFast/Listeners/LogPaymentActivityTest.php'),
-                __DIR__ . '/../../tests/Unit/Models/ProcessPaymentTest.php' => base_path('tests/Unit/PayFast/Models/ProcessPaymentTest.php'),
-                __DIR__ . '/../../tests/Unit/Repositories/ProcessPaymentRepositoryTest.php' => base_path('tests/Unit/PayFast/Repositories/ProcessPaymentRepositoryTest.php'),
-                __DIR__ . '/../../tests/Unit/Services/AuthenticationServiceTest.php' => base_path('tests/Unit/PayFast/Services/AuthenticationServiceTest.php'),
-                __DIR__ . '/../../tests/Unit/Services/OTPVerificationServiceTest.php' => base_path('tests/Unit/PayFast/Services/OTPVerificationServiceTest.php'),
-                __DIR__ . '/../../tests/Unit/Services/PaymentServiceTest.php' => base_path('tests/Unit/PayFast/Services/PaymentServiceTest.php'),
-                __DIR__ . '/../../tests/Unit/Services/TransactionServiceTest.php' => base_path('tests/Unit/PayFast/Services/TransactionServiceTest.php'),
-                
-                // Feature Tests
-                __DIR__ . '/../../tests/Feature/PaymentFlowTest.php' => base_path('tests/Feature/PayFast/PaymentFlowTest.php'),
-            ], 'payfast-tests');
-
-            // Register event listeners
-            $this->registerEventListeners();
+            $this->commands([
+                \zfhassaan\Payfast\Console\CABPayments::class,
+            ]);
         }
 
-        // Load views
+        // Listeners must register for HTTP + console (not console-only).
+        $this->registerEventListeners();
+
+        if (config('payfast.load_migrations', true)) {
+            $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        }
+
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'payfast');
 
-        // Load package API routes (IPN endpoint)
-        $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
+        if (config('payfast.routes.enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
+        }
+
+        $router = $this->app['router'];
+        $router->aliasMiddleware(
+            'payfast.ipn.log',
+            \zfhassaan\Payfast\Http\Middleware\LogIncomingIpn::class
+        );
+        $router->aliasMiddleware(
+            'payfast.ipn',
+            \zfhassaan\Payfast\Http\Middleware\VerifyPayfastIpn::class
+        );
+    }
+
+    /**
+     * Register publishable assets for vendor:publish.
+     */
+    private function registerPublishes(): void
+    {
+        $config = [
+            __DIR__ . '/../../config/config.php' => config_path('payfast.php'),
+        ];
+
+        $migrations = [
+            __DIR__ . '/../database/migrations/2023_08_14_071018_payfast_create_process_payments_table_in_payfast.php'
+                => database_path('migrations/2023_08_14_071018_payfast_create_process_payments_table_in_payfast.php'),
+            __DIR__ . '/../database/migrations/2024_02_02_194203_payfast_create_activity_logs_table.php'
+                => database_path('migrations/2024_02_02_194203_payfast_create_activity_logs_table.php'),
+            __DIR__ . '/../database/migrations/2024_02_02_195511_payfast_create_ipn_table.php'
+                => database_path('migrations/2024_02_02_195511_payfast_create_ipn_table.php'),
+            __DIR__ . '/../database/migrations/2025_01_15_000001_add_status_and_pares_to_process_payments.php'
+                => database_path('migrations/2025_01_15_000001_add_status_and_pares_to_process_payments.php'),
+            __DIR__ . '/../database/migrations/2025_05_06_000001_add_raw_payload_and_ip_to_ipn_table.php'
+                => database_path('migrations/2025_05_06_000001_add_raw_payload_and_ip_to_ipn_table.php'),
+            __DIR__ . '/../database/migrations/2026_03_22_000001_add_idempotency_and_processing_to_ipn_table.php'
+                => database_path('migrations/2026_03_22_000001_add_idempotency_and_processing_to_ipn_table.php'),
+        ];
+
+        $views = [
+            __DIR__ . '/../resources/views/emails' => resource_path('views/vendor/payfast/emails'),
+        ];
+
+        $command = [
+            __DIR__ . '/../Console/CABPayments.php.stub' => app_path('Console/Commands/PayfastCheckPendingPayments.php'),
+        ];
+
+        $logging = [
+            __DIR__ . '/../../config/logging-channel.php' => config_path('payfast-logging-channel.php'),
+        ];
+
+        $envExample = [
+            __DIR__ . '/../../.env.example' => base_path('.env.payfast.example'),
+        ];
+
+        $tests = [
+            __DIR__ . '/../../tests/TestCase.php' => base_path('tests/PayFast/TestCase.php'),
+            __DIR__ . '/../../tests/Unit/TestCase.php' => base_path('tests/Unit/PayFast/TestCase.php'),
+            __DIR__ . '/../../tests/Unit/PayFastTest.php' => base_path('tests/Unit/PayFast/PayFastTest.php'),
+            __DIR__ . '/../../tests/Unit/Console/CABPaymentsTest.php' => base_path('tests/Unit/PayFast/Console/CABPaymentsTest.php'),
+            __DIR__ . '/../../tests/Unit/DTOs/PaymentRequestDTOTest.php' => base_path('tests/Unit/PayFast/DTOs/PaymentRequestDTOTest.php'),
+            __DIR__ . '/../../tests/Unit/DTOs/WalletPaymentRequestDTOTest.php' => base_path('tests/Unit/PayFast/DTOs/WalletPaymentRequestDTOTest.php'),
+            __DIR__ . '/../../tests/Unit/Events/PaymentEventsTest.php' => base_path('tests/Unit/PayFast/Events/PaymentEventsTest.php'),
+            __DIR__ . '/../../tests/Unit/Helpers/UtilityTest.php' => base_path('tests/Unit/PayFast/Helpers/UtilityTest.php'),
+            __DIR__ . '/../../tests/Unit/Listeners/LogPaymentActivityTest.php' => base_path('tests/Unit/PayFast/Listeners/LogPaymentActivityTest.php'),
+            __DIR__ . '/../../tests/Unit/Models/ProcessPaymentTest.php' => base_path('tests/Unit/PayFast/Models/ProcessPaymentTest.php'),
+            __DIR__ . '/../../tests/Unit/Repositories/ProcessPaymentRepositoryTest.php' => base_path('tests/Unit/PayFast/Repositories/ProcessPaymentRepositoryTest.php'),
+            __DIR__ . '/../../tests/Unit/Services/AuthenticationServiceTest.php' => base_path('tests/Unit/PayFast/Services/AuthenticationServiceTest.php'),
+            __DIR__ . '/../../tests/Unit/Services/OTPVerificationServiceTest.php' => base_path('tests/Unit/PayFast/Services/OTPVerificationServiceTest.php'),
+            __DIR__ . '/../../tests/Unit/Services/PaymentServiceTest.php' => base_path('tests/Unit/PayFast/Services/PaymentServiceTest.php'),
+            __DIR__ . '/../../tests/Unit/Services/TransactionServiceTest.php' => base_path('tests/Unit/PayFast/Services/TransactionServiceTest.php'),
+            __DIR__ . '/../../tests/Unit/Http/Requests/FormRequestTest.php' => base_path('tests/Unit/PayFast/Http/Requests/FormRequestTest.php'),
+            __DIR__ . '/../../tests/Unit/Http/Middleware/VerifyPayfastIpnTest.php' => base_path('tests/Unit/PayFast/Http/Middleware/VerifyPayfastIpnTest.php'),
+            __DIR__ . '/../../tests/Feature/PaymentFlowTest.php' => base_path('tests/Feature/PayFast/PaymentFlowTest.php'),
+        ];
+
+        // Individual tags
+        $this->publishes($config, 'payfast-config');
+        $this->publishes($migrations, 'payfast-migrations');
+        $this->publishes($views, 'payfast-email-templates');
+        $this->publishes($command, 'payfast-command');
+        $this->publishes($logging, 'payfast-logging');
+        $this->publishes($envExample, 'payfast-env');
+        $this->publishes($tests, 'payfast-tests');
+
+        // Umbrella tag — publish everything most apps need to customize
+        $this->publishes(
+            array_merge($config, $migrations, $views, $logging, $envExample),
+            'payfast'
+        );
     }
 
     /**
      * Register the application services.
-     *
-     * @return void
      */
     public function register(): void
     {
-        // Automatically apply the package configuration
         $this->mergeConfigFrom(__DIR__ . '/../../config/config.php', 'payfast');
 
-        // Register services
         $this->app->singleton(ConfigService::class);
         $this->app->singleton(HttpClientInterface::class, HttpClientService::class);
         $this->app->singleton(AuthenticationServiceInterface::class, AuthenticationService::class);
@@ -118,18 +161,13 @@ class PayFastServiceProvider extends ServiceProvider
         $this->app->singleton(TransactionServiceInterface::class, TransactionService::class);
         $this->app->singleton(OTPVerificationServiceInterface::class, OTPVerificationService::class);
 
-        // Register repositories
         $this->app->singleton(ProcessPaymentRepositoryInterface::class, ProcessPaymentRepository::class);
         $this->app->singleton(ActivityLogRepositoryInterface::class, ActivityLogRepository::class);
         $this->app->singleton(IPNLogRepositoryInterface::class, IPNLogRepository::class);
 
-        // Register email notification service
         $this->app->singleton(EmailNotificationServiceInterface::class, EmailNotificationService::class);
-
-        // Register IPN service
         $this->app->singleton(IPNServiceInterface::class, IPNService::class);
 
-        // Register the main PayFast class
         $this->app->singleton('payfast', function ($app) {
             return new PayFast(
                 $app->make(AuthenticationServiceInterface::class),
@@ -145,8 +183,6 @@ class PayFastServiceProvider extends ServiceProvider
 
     /**
      * Register event listeners.
-     *
-     * @return void
      */
     private function registerEventListeners(): void
     {

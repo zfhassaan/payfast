@@ -16,10 +16,11 @@ The PayFast package supports multiple payment methods:
 
 ### Complete Flow Diagram
 
-```php
+```
 1. Customer Initiates Payment
    ↓
 2. Validate Customer (getOTPScreen)
+   → checkout_url automatically included in request
    ↓
 3. Payment Stored in DB (status: validated)
    ↓
@@ -36,7 +37,12 @@ The PayFast package supports multiple payment methods:
 9. Complete Transaction (completeTransactionFromPares)
    ↓
 10. Payment Completed (status: completed)
+   ↓
+11. PayFast sends IPN to checkout_url (POST /payfast/ipn)
+   → Package auto-processes: logs, updates status, dispatches events
 ```
+
+> **Note**: The `checkout_url` is automatically injected into every outgoing API request by the package. PayFast uses this URL to send IPN (Instant Payment Notification) callbacks. See [IPN Handling](IPN-Handling.md) for details.
 
 ### Step-by-Step Implementation
 
@@ -63,10 +69,10 @@ if ($result['status']) {
     // Payment stored in DB with status: 'validated'
     $transactionId = $result['data']['transaction_id'];
     $paymentId = $result['data']['payment_id'];
-
+    
     // Redirect to OTP screen
     $redirectUrl = $result['data']['redirect_url'] ?? '/otp-screen';
-
+    
     return redirect($redirectUrl)->with([
         'transaction_id' => $transactionId,
         'payment_id' => $paymentId,
@@ -131,13 +137,13 @@ public function handleCallback(Request $request)
     if ($result['status']) {
         // Payment completed successfully
         // Payment status updated to 'completed' in DB
-
+        
         // Get payment record
         $payment = \zfhassaan\Payfast\Models\ProcessPayment::where('data_3ds_pares', $request->pares)->first();
-
+        
         // Update your order status, send confirmation email, etc.
         // ...
-
+        
         return response()->json([
             'status' => 'success',
             'message' => 'Payment completed',
@@ -170,7 +176,7 @@ if ($result['status']) {
     // Same flow as card payment - redirect to OTP screen
     $transactionId = $result['data']['transaction_id'];
     $paymentId = $result['data']['payment_id'];
-
+    
     return redirect('/otp-screen')->with([
         'transaction_id' => $transactionId,
         'payment_id' => $paymentId,
@@ -183,6 +189,28 @@ if ($result['status']) {
 ```php
 $response = PayFast::payWithUPaisa($paymentData);
 // Same flow as EasyPaisa
+```
+
+### JazzCash Payment
+
+```php
+$paymentData = [
+    'basket_id' => 'ORD-12345',
+    'txnamt' => 1000.00,
+    'customer_mobile_no' => '03001234567',
+    'customer_email_address' => 'customer@example.com',
+];
+
+$response = PayFast::payWithJazzCash($paymentData);
+$result = json_decode($response->getContent(), true);
+
+if ($result['status']) {
+    // Payment stored with payment_method: jazzcash, status: validated
+    $transactionId = $result['data']['transaction_id'];
+    $paymentId = $result['data']['payment_id'];
+
+    // Next: show OTP / call PayFast::walletTransactionInitiate(...)
+}
 ```
 
 ## Payment Status Tracking
@@ -290,8 +318,11 @@ ProcessPayment::METHOD_UPAISA
 ProcessPayment::METHOD_JAZZCASH
 ```
 
+- Bank code: `1`
+- Account type id: `4`
 - Mobile wallet payment
-- Requires mobile number
+- Requires basket id, amount, and mobile number
+- Entry point: `PayFast::payWithJazzCash()`
 
 ## Console Command for Payment Checking
 
@@ -377,11 +408,11 @@ class PaymentController extends Controller
 
         if ($result['status']) {
             $payment = ProcessPayment::where('data_3ds_pares', $request->pares)->first();
-
+            
             // Update your order
             // Send confirmation email
             // etc.
-
+            
             return response()->json([
                 'status' => 'success',
                 'transaction_id' => $payment->transaction_id,
@@ -407,7 +438,7 @@ class PaymentController extends Controller
 try {
     $response = PayFast::completeTransactionFromPares($pares);
     $result = json_decode($response->getContent(), true);
-
+    
     if (!$result['status']) {
         // Log error
         \Log::error('Payment completion failed', [
@@ -415,7 +446,7 @@ try {
             'error' => $result['message'],
             'code' => $result['code'],
         ]);
-
+        
         // Update payment status
         $payment = ProcessPayment::where('data_3ds_pares', $pares)->first();
         if ($payment) {
@@ -435,3 +466,4 @@ try {
 - [API Reference](API-Reference.md) - Explore all available methods
 - [IPN Handling](IPN-Handling.md) - Set up webhook notifications
 - [Events and Listeners](Events-and-Listeners.md) - Understand event system
+

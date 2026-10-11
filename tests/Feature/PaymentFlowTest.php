@@ -300,6 +300,7 @@ class PaymentFlowTest extends OrchestraTestCase
         $paymentService = Mockery::mock(PaymentServiceInterface::class);
         $paymentService->shouldReceive('validateWalletTransaction')
             ->once()
+            ->with(Mockery::type(\zfhassaan\Payfast\DTOs\WalletPaymentRequestDTO::class), Mockery::type('string'))
             ->andReturn([
                 'code' => '00',
                 'transaction_id' => 'TXN-123',
@@ -324,13 +325,7 @@ class PaymentFlowTest extends OrchestraTestCase
         $this->payfast = $this->app->make('payfast');
 
         $response = $this->payfast->payWithEasyPaisa($paymentData);
-        // payWithEasyPaisa returns json_encoded string, not JsonResponse
         $result = is_string($response) ? json_decode($response, true) : json_decode($response->getContent(), true);
-
-        // Debug: dump result if assertion fails
-        if (!is_array($result) || !isset($result['status'])) {
-            dump('Response:', $response, 'Decoded:', $result);
-        }
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('status', $result);
@@ -340,6 +335,65 @@ class PaymentFlowTest extends OrchestraTestCase
         $payment = ProcessPayment::where('transaction_id', 'TXN-123')->first();
         $this->assertNotNull($payment);
         $this->assertEquals(ProcessPayment::METHOD_EASYPAISA, $payment->payment_method);
+    }
+
+    public function testJazzCashWalletPaymentFlow(): void
+    {
+        Event::fake();
+
+        $paymentData = [
+            'basket_id' => 'ORD-JC-100',
+            'txnamt' => 2500.00,
+            'customer_mobile_no' => '03001234567',
+            'customer_email_address' => 'jazz@example.com',
+        ];
+
+        $authService = Mockery::mock(AuthenticationServiceInterface::class);
+        $authService->shouldReceive('getToken')
+            ->zeroOrMoreTimes()
+            ->andReturn([
+                'code' => '00',
+                'data' => ['token' => 'jazz_token_123'],
+            ]);
+
+        $paymentService = Mockery::mock(PaymentServiceInterface::class);
+        $paymentService->shouldReceive('validateWalletTransaction')
+            ->once()
+            ->with(
+                Mockery::on(fn ($dto) => $dto->bankCode === 1),
+                Mockery::type('string')
+            )
+            ->andReturn([
+                'code' => '00',
+                'transaction_id' => 'TXN-JC-100',
+            ]);
+
+        $transactionService = Mockery::mock(TransactionServiceInterface::class);
+        $otpVerificationService = Mockery::mock(OTPVerificationServiceInterface::class);
+        $ipnService = Mockery::mock(IPNServiceInterface::class);
+
+        $this->app->instance(AuthenticationServiceInterface::class, $authService);
+        $this->app->instance(PaymentServiceInterface::class, $paymentService);
+        $this->app->instance(TransactionServiceInterface::class, $transactionService);
+        $this->app->instance(OTPVerificationServiceInterface::class, $otpVerificationService);
+        $this->app->instance(IPNServiceInterface::class, $ipnService);
+
+        $this->app->forgetInstance('payfast');
+        $this->payfast = $this->app->make('payfast');
+
+        $response = $this->payfast->payWithJazzCash($paymentData);
+        $result = is_string($response) ? json_decode($response, true) : json_decode($response->getContent(), true);
+
+        $this->assertIsArray($result);
+        $this->assertTrue($result['status']);
+        $this->assertEquals('00', $result['code']);
+        $this->assertEquals(ProcessPayment::METHOD_JAZZCASH, $result['data']['payment_method']);
+
+        $payment = ProcessPayment::where('transaction_id', 'TXN-JC-100')->first();
+        $this->assertNotNull($payment);
+        $this->assertEquals(ProcessPayment::METHOD_JAZZCASH, $payment->payment_method);
+        $this->assertEquals(ProcessPayment::STATUS_VALIDATED, $payment->status);
+        Event::assertDispatched(PaymentValidated::class);
     }
 
     protected function tearDown(): void

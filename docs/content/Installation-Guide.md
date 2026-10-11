@@ -23,48 +23,49 @@ Install the package using Composer:
 composer require zfhassaan/payfast
 ```
 
-## Step 2: Publish Configuration
+## Step 2: Publish Package Assets
 
-Publish the configuration file to your `config` directory:
+Publish everything you typically customize:
+
+```bash
+php artisan vendor:publish --tag=payfast
+```
+
+Or publish selectively:
 
 ```bash
 php artisan vendor:publish --tag=payfast-config
-```
-
-This will create `config/payfast.php` in your application.
-
-## Step 3: Publish Migrations
-
-Publish the database migrations:
-
-```bash
 php artisan vendor:publish --tag=payfast-migrations
+php artisan vendor:publish --tag=payfast-email-templates
+php artisan vendor:publish --tag=payfast-logging
+php artisan vendor:publish --tag=payfast-env
 ```
 
-This will copy the following migrations to your `database/migrations` directory:
+This creates:
 
-- `2023_08_14_071018_payfast_create_process_payments_table_in_payfast.php`
-- `2024_02_02_194203_payfast_create_activity_logs_table.php`
-- `2024_02_02_195511_payfast_create_ipn_table.php`
-- `2025_01_15_000001_add_status_and_pares_to_process_payments.php`
+- `config/payfast.php` — main settings (API, wallets, IPN, routes, email)
+- `database/migrations/*payfast*` — optional if you prefer app-owned migrations
+- `resources/views/vendor/payfast/emails` — editable email templates
+- `config/payfast-logging-channel.php` — merge into `config/logging.php` as channel `payfast`
+- `.env.payfast.example` — copy keys into your `.env`
 
-## Step 4: Run Migrations
+> Migrations also auto-load from the package. If you publish them into your app, set `PAYFAST_LOAD_MIGRATIONS=false`.
 
-Run the migrations to create the necessary database tables:
+## Step 3: Run Migrations
 
 ```bash
 php artisan migrate
 ```
 
-This will create the following tables:
+Tables created:
 
-- `payfast_process_payments_table` - Stores payment records
-- `payfast_activity_logs_table` - Stores payment activity logs
-- `payfast_ipn_table` - Stores IPN (Instant Payment Notification) logs
+- `payfast_process_payments_table`
+- `payfast_activity_logs`
+- `payfast_ipn_table` (name may vary by migration)
 
-## Step 5: Configure Environment Variables
+## Step 4: Configure Environment Variables
 
-Add the following environment variables to your `.env` file:
+Copy from the published `.env.payfast.example` or add:
 
 ```env
 # PayFast Configuration
@@ -78,11 +79,12 @@ PAYFAST_RETURN_URL=https://yourdomain.com/payment/callback
 PAYFAST_MODE=sandbox
 PAYFAST_VERIFY_TRANSACTION=https://api.payfast.com/transaction/view
 
-# Email Configuration (Optional)
+# Optional
+PAYFAST_LOAD_MIGRATIONS=true
+PAYFAST_ROUTES_ENABLED=true
+PAYFAST_IPN_SECRET=
+PAYFAST_IPN_ALLOWED_IPS=
 PAYFAST_ADMIN_EMAILS=admin@example.com,admin2@example.com
-PAYFAST_EMAIL_SUBJECT_COMPLETION=Payment Completed Successfully
-PAYFAST_EMAIL_SUBJECT_ADMIN=New Payment Completed
-PAYFAST_EMAIL_SUBJECT_FAILURE=Payment Failed
 ```
 
 ### Environment Variables Explained

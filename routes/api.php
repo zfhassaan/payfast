@@ -8,10 +8,17 @@ use zfhassaan\Payfast\Http\Controllers\IPNController;
 | PayFast Package API Routes
 |--------------------------------------------------------------------------
 |
-| These routes are loaded by the PayFastServiceProvider with the 'api'
-| middleware group. CSRF verification is automatically excluded.
+| Middleware / prefix are driven by config/payfast.php so apps can customize
+| after: php artisan vendor:publish --tag=payfast-config
 |
 */
 
-Route::post('payfast/ipn', [IPNController::class, 'handle'])
-    ->name('payfast.ipn.handle');
+$middleware = config('payfast.routes.middleware', ['api', 'payfast.ipn']);
+$prefix = (string) config('payfast.routes.prefix', '');
+
+Route::middleware($middleware)
+    ->prefix($prefix)
+    ->group(function (): void {
+        Route::post('payfast/ipn', [IPNController::class, 'handle'])
+            ->name('payfast.ipn.handle');
+    });

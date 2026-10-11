@@ -125,32 +125,30 @@ Common issues and solutions when using the PayFast package.
 **Error**: IPN webhook not being called
 
 **Solution**:
-1. Check IPN URL is configured in PayFast dashboard
-2. Verify URL is publicly accessible
-3. Check server logs for incoming requests
-4. Verify HTTPS is working
-5. Check firewall isn't blocking PayFast IPs
+1. Set `PAYFAST_CHECKOUT_URL=https://yourdomain.com/payfast/ipn` (or rely on `route('payfast.ipn.handle')`)
+2. Confirm `PAYFAST_ROUTES_ENABLED=true` and run `php artisan route:list --name=payfast`
+3. Verify the URL is publicly reachable over HTTPS
+4. Check `storage/logs/payfast` and `payfast_ipn_table` (`processing_status=received` means the request hit your app)
+5. Check firewall / allowlist if `PAYFAST_IPN_ALLOWED_IPS` is set
 
-### IPN Not Processing
+### IPN Not Processing / Rejected
 
-**Error**: IPN received but payment not updated
+**Error**: Row logged but payment not updated
 
 **Solution**:
-1. Check IPN logs in database
-2. Verify transaction_id matches
-3. Check order_no/basket_id matches
-4. Review IPN processing logs
-5. Check for duplicate processing
+1. Inspect `processing_status`: `rejected` → IP/HMAC/validation; `failed` → exception; `duplicate` → already applied
+2. Match `transaction_id` / `order_no` to `payfast_process_payments_table`
+3. Confirm migrations include idempotency / `processing_status` columns
+4. Review the `payfast` log channel
 
 ### Duplicate IPN Processing
 
-**Error**: Same IPN processed multiple times
+**Error**: Same IPN applied more than once
 
 **Solution**:
-1. Check idempotency logic
-2. Verify IPN logs for duplicates
-3. Review IPN processing code
-4. Check database for duplicate entries
+1. Keep `PAYFAST_IDEMPOTENCY_ENABLED=true`
+2. Expect a second row with `processing_status=duplicate` and response `ALREADY_PROCESSED`
+3. Completed payments are terminal — later failed IPNs will not overwrite them
 
 ## Database Issues
 
@@ -277,19 +275,19 @@ Common issues and solutions when using the PayFast package.
 **Error**: CSRF token mismatch on IPN endpoint
 
 **Solution**:
-1. Disable CSRF for IPN endpoint
-2. Add IPN route to `$except` in `VerifyCsrfToken`
-3. Verify route is correct
+1. Keep `PAYFAST_IPN_USE_API_MIDDLEWARE=true` so the route uses the `api` group (no CSRF)
+2. If you use a custom `web` route, add it to `$except` in `VerifyCsrfToken`
+3. Confirm `route:list` shows middleware including `api`, not only `web`
 
-### Unauthorized Access
+### Unauthorized Access / Invalid Signature
 
-**Error**: Unauthorized IPN requests
+**Error**: `IPN_IP_FORBIDDEN` or `IPN_SIGNATURE_INVALID`
 
 **Solution**:
-1. Implement IP whitelisting
-2. Add signature verification
-3. Review security middleware
-4. Check authentication logic
+1. Configure `PAYFAST_IPN_ALLOWED_IPS` with PayFast IPs/CIDRs (or leave empty in sandbox)
+2. Set `PAYFAST_IPN_SECRET` and sign the **raw** body with HMAC-SHA256
+3. Match header name to `PAYFAST_IPN_SIGNATURE_HEADER` (default `X-PayFast-Signature`)
+4. Rejected attempts still appear in `payfast_ipn_table` with `processing_status=rejected`
 
 ## General Debugging
 

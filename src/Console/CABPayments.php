@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Http\JsonResponse;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ActivityLogRepositoryInterface;
+use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
 use zfhassaan\Payfast\Services\ConfigService;
 use zfhassaan\Payfast\Services\Contracts\EmailNotificationServiceInterface;
 use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
@@ -35,15 +36,14 @@ class CABPayments extends Command
         private readonly HttpClientInterface $httpClient,
         private readonly ConfigService $configService,
         private readonly ActivityLogRepositoryInterface $activityLogRepository,
-        private readonly EmailNotificationServiceInterface $emailNotificationService
+        private readonly EmailNotificationServiceInterface $emailNotificationService,
+        private readonly ProcessPaymentRepositoryInterface $paymentRepository
     ) {
         parent::__construct();
     }
 
     /**
      * Execute the console command.
-     *
-     * @return int
      */
     public function handle(): int
     {
@@ -51,20 +51,8 @@ class CABPayments extends Command
         $limit = (int) $this->option('limit');
         $skipEmail = $this->option('no-email');
 
-        $query = ProcessPayment::query();
-
-        if ($status) {
-            $query->where('status', $status);
-        } else {
-            // Default to pending and validated payments
-            $query->whereIn('status', [
-                ProcessPayment::STATUS_PENDING,
-                ProcessPayment::STATUS_VALIDATED,
-                ProcessPayment::STATUS_OTP_VERIFIED,
-            ]);
-        }
-
-        $payments = $query->limit($limit)->get();
+        $statuses = $status ? [(string) $status] : null;
+        $payments = $this->paymentRepository->findForStatusCheck($statuses, $limit);
 
         if ($payments->isEmpty()) {
             $this->info('No pending payments found.');
@@ -85,14 +73,9 @@ class CABPayments extends Command
                 $responseData = json_decode($response->getContent(), true);
 
                 if (isset($responseData['code']) && $responseData['code'] === '00') {
-                    // Payment is completed
-                    $oldStatus = $payment->status;
-                    $payment->markAsCompleted();
-
-                    // Log activity
+                    $this->paymentRepository->markAsCompleted($payment);
                     $this->logActivity($payment, ProcessPayment::STATUS_COMPLETED, $responseData);
 
-                    // Send email notifications if not skipped
                     if (!$skipEmail) {
                         $this->sendCompletionNotifications($payment, $responseData);
                     }
@@ -101,14 +84,10 @@ class CABPayments extends Command
                     $completed++;
                     $processed++;
                 } else {
-                    // Payment verification failed
                     $errorMessage = $responseData['message'] ?? 'Verification failed';
-                    $payment->markAsFailed($errorMessage);
-
-                    // Log activity
+                    $this->paymentRepository->markAsFailed($payment, $errorMessage);
                     $this->logActivity($payment, ProcessPayment::STATUS_FAILED, $responseData);
 
-                    // Send failure email if not skipped
                     if (!$skipEmail) {
                         $this->emailNotificationService->sendPaymentFailureEmail($payment, $errorMessage);
                     }
@@ -118,17 +97,14 @@ class CABPayments extends Command
                 }
             } catch (\Exception $e) {
                 $this->error("✗ Error processing payment {$payment->orderNo}: {$e->getMessage()}");
-                $payment->markAsFailed($e->getMessage());
-
-                // Log activity
+                $this->paymentRepository->markAsFailed($payment, $e->getMessage());
                 $this->logActivity($payment, ProcessPayment::STATUS_FAILED, ['error' => $e->getMessage()]);
-
                 $failed++;
             }
         }
 
         $this->newLine();
-        $this->info("Processing complete!");
+        $this->info('Processing complete!');
         $this->info("Completed: {$completed}");
         $this->info("Processed: {$processed}");
         $this->warn("Failed: {$failed}");
@@ -136,12 +112,6 @@ class CABPayments extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Check transaction status by basket ID.
-     *
-     * @param string $basketId
-     * @return JsonResponse
-     */
     private function voidTransactionCheck(string $basketId): JsonResponse
     {
         $username = $this->configService->getMerchantId();
@@ -158,7 +128,6 @@ class CABPayments extends Command
             'Content-Type' => 'application/x-www-form-urlencoded',
         ];
 
-        // Use basic auth
         $response = $this->httpClient->get($url, array_merge($headers, [
             'Authorization' => 'Basic ' . base64_encode($username . ':' . $password),
         ]));
@@ -167,16 +136,11 @@ class CABPayments extends Command
     }
 
     /**
-     * Log payment activity.
-     *
-     * @param ProcessPayment $payment
-     * @param string $status
-     * @param array<string, mixed> $responseData
-     * @return void
+     * @param  array<string, mixed>  $responseData
      */
     private function logActivity(ProcessPayment $payment, string $status, array $responseData): void
     {
-        $requestData = json_decode($payment->requestData ?? '{}', true);
+        $requestData = json_decode($payment->requestData ?? '{}', true) ?: [];
         $userId = $requestData['user_id'] ?? null;
 
         $this->activityLogRepository->create([
@@ -195,19 +159,12 @@ class CABPayments extends Command
     }
 
     /**
-     * Send completion notifications.
-     *
-     * @param ProcessPayment $payment
-     * @param array<string, mixed> $transactionData
-     * @return void
+     * @param  array<string, mixed>  $transactionData
      */
     private function sendCompletionNotifications(ProcessPayment $payment, array $transactionData): void
     {
         try {
-            // Send to customer
             $this->emailNotificationService->sendPaymentCompletionEmail($payment, $transactionData);
-
-            // Send to admins
             $this->emailNotificationService->sendAdminNotificationEmail($payment, $transactionData);
         } catch (\Exception $e) {
             $this->warn("Failed to send email notifications: {$e->getMessage()}");

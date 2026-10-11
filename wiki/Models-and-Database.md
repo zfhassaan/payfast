@@ -94,9 +94,9 @@ ProcessPayment::STATUS_CANCELLED     // Payment cancelled
 
 ```php
 ProcessPayment::METHOD_CARD       // Card payment
-ProcessPayment::METHOD_EASYPAISA // EasyPaisa wallet
-ProcessPayment::METHOD_JAZZCASH  // JazzCash wallet
-ProcessPayment::METHOD_UPAISA   // UPaisa wallet
+ProcessPayment::METHOD_EASYPAISA // EasyPaisa wallet (bank_code 13)
+ProcessPayment::METHOD_JAZZCASH  // JazzCash wallet (bank_code 1)
+ProcessPayment::METHOD_UPAISA   // UPaisa wallet (bank_code 14)
 ```
 
 ### Helper Methods
@@ -200,50 +200,40 @@ $logs = ActivityLog::where('order_no', 'ORD-12345')->get();
 
 ### Table: `payfast_ipn_table`
 
-Stores IPN (Instant Payment Notification) logs.
+Stores **one row per IPN delivery attempt** (log-first). Duplicates are kept as separate rows with `processing_status = duplicate`.
 
-### Schema
+### Important columns (current)
 
-```php
-Schema::create('payfast_ipn_table', function (Blueprint $table) {
-    $table->id();
-    $table->string('transaction_id')->nullable();
-    $table->string('order_no')->nullable();
-    $table->string('status')->nullable();
-    $table->decimal('amount', 10, 2)->nullable();
-    $table->string('currency')->nullable();
-    $table->text('ipn_data')->nullable();
-    $table->boolean('processed')->default(false);
-    $table->text('processing_result')->nullable();
-    $table->timestamps();
-    
-    $table->index('transaction_id');
-    $table->index('order_no');
-    $table->index('processed');
-});
-```
+| Column | Purpose |
+|--------|---------|
+| `uid` | UUID per row |
+| `transaction_id` | Gateway transaction id (indexed; not unique) |
+| `order_no` | Basket / order id |
+| `status` | Gateway status payload (`00`, `failed`, …) |
+| `processing_status` | `received` / `processed` / `duplicate` / `rejected` / `failed` |
+| `idempotency_key` | SHA-256 of txn\|order\|status\|amount (unique when processed) |
+| `payload_hash` | Hash of raw body |
+| `duplicate_of` | Points at original processed row |
+| `amount`, `currency` | From payload |
+| `details` | JSON metadata / phase info |
+| `raw_payload` | Raw request body |
+| `request_headers` | Headers (secrets redacted) |
+| `ip_address` | Client IP |
+| `received_at` | When the attempt was captured |
 
 ### Model Usage
 
 ```php
 use zfhassaan\Payfast\Models\IPNLog;
 
-// Create IPN log
-IPNLog::create([
-    'transaction_id' => 'TXN123456',
-    'order_no' => 'ORD-12345',
-    'status' => '00',
-    'amount' => 1000.00,
-    'currency' => 'PKR',
-    'ipn_data' => json_encode($ipnData),
-    'processed' => true,
-]);
+// All attempts for a transaction (including duplicates)
+$logs = IPNLog::where('transaction_id', 'TXN123456')->orderBy('id')->get();
 
-// Find unprocessed IPNs
-$unprocessed = IPNLog::where('processed', false)->get();
+// Only successfully processed deliveries
+$processed = IPNLog::where('processing_status', IPNLog::STATUS_PROCESSED)->get();
 
-// Find by transaction ID
-$log = IPNLog::where('transaction_id', 'TXN123456')->first();
+// Rejected (bad signature / validation)
+$rejected = IPNLog::where('processing_status', IPNLog::STATUS_REJECTED)->latest()->get();
 ```
 
 ## Repositories
@@ -296,11 +286,9 @@ use zfhassaan\Payfast\Repositories\Contracts\IPNLogRepositoryInterface;
 
 $repository = app(IPNLogRepositoryInterface::class);
 
-// Create IPN log
-$repository->create([
-    'transaction_id' => 'TXN123456',
-    'ipn_data' => json_encode($data),
-]);
+$log = $repository->findByTransactionId('TXN123456');
+$processed = $repository->findProcessedByTransactionId('TXN123456');
+$byKey = $repository->findProcessedByIdempotencyKey($idempotencyKey);
 ```
 
 ## Factories
@@ -443,7 +431,6 @@ php artisan vendor:publish --tag=payfast-migrations
 - [Payment Flows](Payment-Flows.md) - Understand payment processing
 - [Events and Listeners](Events-and-Listeners.md) - Event system
 - [Console Commands](Console-Commands.md) - CLI commands
-
 
 
 

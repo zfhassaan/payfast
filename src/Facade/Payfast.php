@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool|string refundTransactionRequest(array $data)
  * @method static mixed payWithEasyPaisa(array $data)
  * @method static mixed payWithUPaisa(array $data)
+ * @method static mixed payWithJazzCash(array $data)
  * @method static string|bool validateWalletTransaction(array $data)
  * @method static bool|string walletTransactionInitiate(array $data)
  * @method static bool|string initiateTransaction(array $data)

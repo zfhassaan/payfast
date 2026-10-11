@@ -8,15 +8,17 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use zfhassaan\Payfast\DTOs\PaymentRequestDTO;
+use zfhassaan\Payfast\DTOs\WalletPaymentRequestDTO;
 use zfhassaan\Payfast\Events\PaymentCompleted;
 use zfhassaan\Payfast\Events\PaymentFailed;
 use zfhassaan\Payfast\Events\PaymentInitiated;
 use zfhassaan\Payfast\Events\PaymentValidated;
 use zfhassaan\Payfast\Events\TokenRefreshed;
 use zfhassaan\Payfast\Helpers\Utility;
+use zfhassaan\Payfast\Http\Requests\CardPaymentRequest;
+use zfhassaan\Payfast\Http\Requests\WalletPaymentRequest;
 use zfhassaan\Payfast\Interfaces\PaymentInterface;
 use zfhassaan\Payfast\Models\ProcessPayment;
 use zfhassaan\Payfast\Repositories\Contracts\ProcessPaymentRepositoryInterface;
@@ -112,25 +114,7 @@ class PayFast implements PaymentInterface
      */
     public function getOTPScreen(array $data): JsonResponse
     {
-        $validator = Validator::make($data, [
-            'orderNumber' => 'required',
-            'transactionAmount' => 'required|numeric',
-            'customerMobileNo' => 'required',
-            'customer_email' => 'required|email',
-            'cardNumber' => 'required',
-            'expiry_month' => 'required',
-            'expiry_year' => 'required',
-            'cvv' => 'required',
-        ], [
-            'orderNumber.required' => 'Order Number is Required',
-            'transactionAmount.required' => 'Transaction Amount is required',
-            'customerMobileNo.required' => 'Customer Mobile Number is required',
-            'customer_email.required' => 'Customer Email address is required',
-            'cardNumber.required' => 'Card Number is required',
-            'expiry_month.required' => 'Expiry Month is required',
-            'expiry_year.required' => 'Expiry Year is required',
-            'cvv.required' => 'CVV is a required Field.',
-        ]);
+        $validator = CardPaymentRequest::validateArray($data);
 
         if ($validator->fails()) {
             return Utility::returnError(
@@ -140,6 +124,8 @@ class PayFast implements PaymentInterface
                 Response::HTTP_BAD_REQUEST
             );
         }
+
+        $data = $validator->validated();
 
         try {
             // Get token first
@@ -432,10 +418,7 @@ class PayFast implements PaymentInterface
      */
     public function payWithEasyPaisa(array $data): JsonResponse
     {
-        $data['order_date'] = Carbon::today()->toDateString();
-        $data['bank_code'] = 13;
-
-        return $this->validateWalletTransaction($data);
+        return $this->payWithWallet($data, 'easypaisa', 'EasyPaisa');
     }
 
     /**
@@ -446,10 +429,61 @@ class PayFast implements PaymentInterface
      */
     public function payWithUPaisa(array $data): JsonResponse
     {
-        $data['order_date'] = Carbon::today()->toDateString();
-        $data['bank_code'] = 14;
+        return $this->payWithWallet($data, 'upaisa', 'UPaisa');
+    }
 
-        return $this->validateWalletTransaction($data);
+    /**
+     * Pay with JazzCash wallet.
+     *
+     * Uses PayFast customer/validate with configurable bank_code / account_type_id,
+     * then persists the payment for the subsequent wallet transaction step.
+     *
+     * @param array<string, mixed> $data
+     * @return JsonResponse
+     */
+    public function payWithJazzCash(array $data): JsonResponse
+    {
+        return $this->payWithWallet($data, 'jazzcash', 'JazzCash');
+    }
+
+    /**
+     * Shared wallet entrypoint with Form Request + DTO validation.
+     *
+     * Bank codes come from config/payfast.php → wallets.* (publishable).
+     *
+     * @param array<string, mixed> $data
+     */
+    private function payWithWallet(array $data, string $walletKey, string $walletLabel): JsonResponse
+    {
+        $validator = WalletPaymentRequest::validateArray($data);
+
+        if ($validator->fails()) {
+            return Utility::returnError(
+                $validator->errors(),
+                $validator->errors()->first() ?? "Invalid {$walletLabel} wallet payment data",
+                'VALIDATION_ERROR',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $defaults = match ($walletKey) {
+            'jazzcash' => WalletPaymentRequestDTO::BANK_CODE_JAZZCASH,
+            'upaisa' => WalletPaymentRequestDTO::BANK_CODE_UPAISA,
+            default => WalletPaymentRequestDTO::BANK_CODE_EASYPAISA,
+        };
+
+        $bankCode = (int) config("payfast.wallets.{$walletKey}.bank_code", $defaults);
+        $accountTypeId = (int) config(
+            "payfast.wallets.{$walletKey}.account_type_id",
+            WalletPaymentRequestDTO::ACCOUNT_TYPE_WALLET
+        );
+
+        $validated = $validator->validated();
+        $validated['account_type_id'] = $validated['account_type_id'] ?? $accountTypeId;
+
+        $dto = WalletPaymentRequestDTO::fromArray($validated, $bankCode, $accountTypeId);
+
+        return $this->validateWalletTransaction($dto->toArray());
     }
 
     /**
@@ -471,46 +505,43 @@ class PayFast implements PaymentInterface
                 return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
-            $bankCode = (int) ($data['bank_code'] ?? 0);
-            $response = $this->paymentService->validateWalletTransaction($data, $bankCode, 4);
+            $dto = WalletPaymentRequestDTO::fromArray($data);
+            if ($dto->bankCode <= 0 || !$dto->isValid()) {
+                return Utility::returnError([], 'A valid bank_code and wallet payload are required', 'VALIDATION_ERROR');
+            }
+
+            $response = $this->paymentService->validateWalletTransaction($dto, $this->authToken);
 
             if (isset($response['code']) && $response['code'] === '00') {
-                $data['token'] = $this->authToken;
-                $data['transaction_id'] = $response['transaction_id'] ?? '';
+                $payload = $dto->toArray();
+                $payload['token'] = $this->authToken;
+                $payload['transaction_id'] = $response['transaction_id'] ?? '';
 
-                // Store payment in database with validated status
-                $paymentMethod = ProcessPayment::METHOD_EASYPAISA;
-                if (isset($data['bank_code'])) {
-                    $paymentMethod = match ((int) $data['bank_code']) {
-                        13 => ProcessPayment::METHOD_EASYPAISA,
-                        14 => ProcessPayment::METHOD_UPAISA,
-                        default => ProcessPayment::METHOD_EASYPAISA,
-                    };
-                }
+                $paymentMethod = $this->resolveWalletPaymentMethod($dto->bankCode);
 
                 $paymentData = [
                     'token' => $this->authToken,
-                    'orderNo' => $data['basket_id'] ?? $data['orderNumber'] ?? '',
+                    'orderNo' => $dto->orderNumber,
                     'data_3ds_secureid' => $response['data_3ds_secureid'] ?? '',
                     'transaction_id' => $response['transaction_id'] ?? '',
                     'status' => ProcessPayment::STATUS_VALIDATED,
                     'payment_method' => $paymentMethod,
                     'payload' => json_encode([
                         'customer_validate' => $response,
-                        'user_request' => $data,
+                        'user_request' => $payload,
                     ]),
-                    'requestData' => json_encode($data),
+                    'requestData' => json_encode($payload),
                 ];
 
                 $payment = $this->paymentRepository->create($paymentData);
 
-                Event::dispatch(new PaymentValidated($data, $response));
+                Event::dispatch(new PaymentValidated($payload, $response));
 
-                // For wallet payments, we can complete immediately or wait for OTP
-                // Return payment info for OTP screen if needed
+                // For wallet payments, return payment info for OTP / wallet initiate step
                 return Utility::returnSuccess([
                     'transaction_id' => $response['transaction_id'] ?? '',
                     'payment_id' => $payment->id,
+                    'payment_method' => $paymentMethod,
                     'redirect_url' => $response['redirect_url'] ?? null,
                 ], 'Wallet transaction validated successfully', '00');
             }
@@ -534,7 +565,8 @@ class PayFast implements PaymentInterface
                 return Utility::returnError([], 'Authentication token is required', 'AUTH_ERROR');
             }
 
-            $response = $this->paymentService->initiateWalletTransaction($data, $this->authToken);
+            $dto = WalletPaymentRequestDTO::fromArray($data);
+            $response = $this->paymentService->initiateWalletTransaction($dto, $this->authToken);
 
             if (isset($response['code']) && $response['code'] === '00') {
                 Event::dispatch(new PaymentCompleted($data, $response));
@@ -691,6 +723,23 @@ class PayFast implements PaymentInterface
         } catch (\Exception $e) {
             return Utility::returnError([], $e->getMessage());
         }
+    }
+
+    /**
+     * Map wallet bank_code (from config) to ProcessPayment payment_method.
+     */
+    private function resolveWalletPaymentMethod(int $bankCode): string
+    {
+        $jazz = (int) config('payfast.wallets.jazzcash.bank_code', WalletPaymentRequestDTO::BANK_CODE_JAZZCASH);
+        $easy = (int) config('payfast.wallets.easypaisa.bank_code', WalletPaymentRequestDTO::BANK_CODE_EASYPAISA);
+        $up = (int) config('payfast.wallets.upaisa.bank_code', WalletPaymentRequestDTO::BANK_CODE_UPAISA);
+
+        return match ($bankCode) {
+            $jazz => ProcessPayment::METHOD_JAZZCASH,
+            $up => ProcessPayment::METHOD_UPAISA,
+            $easy => ProcessPayment::METHOD_EASYPAISA,
+            default => ProcessPayment::METHOD_EASYPAISA,
+        };
     }
 
     /**

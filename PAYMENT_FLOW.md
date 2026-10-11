@@ -177,6 +177,13 @@ $response = PayFast::payWithUPaisa($paymentData);
 // Same flow as EasyPaisa
 ```
 
+### JazzCash Payment
+
+```php
+$response = PayFast::payWithJazzCash($paymentData);
+// Same flow as EasyPaisa (bank_code=1, payment_method=jazzcash)
+```
+
 ## Payment Status Tracking
 
 The `ProcessPayment` model tracks payment status:

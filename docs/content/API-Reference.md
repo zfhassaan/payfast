@@ -10,6 +10,31 @@ All methods are accessible via the `PayFast` facade:
 use zfhassaan\Payfast\Facades\PayFast;
 ```
 
+## Form Requests
+
+Package Form Requests live under `zfhassaan\Payfast\Http\Requests` and work both as HTTP type-hints and for programmatic array validation:
+
+| Class | Use for |
+|-------|---------|
+| `CardPaymentRequest` | Direct checkout / OTP screen |
+| `WalletPaymentRequest` | EasyPaisa, UPaisa, JazzCash |
+| `IPNRequest` | IPN webhook (`IPNController` type-hints this) |
+
+```php
+use zfhassaan\Payfast\Http\Requests\WalletPaymentRequest;
+
+$validator = WalletPaymentRequest::validateArray($payload);
+if ($validator->fails()) {
+    // $validator->errors()
+}
+
+// In an app controller:
+public function checkout(CardPaymentRequest $request)
+{
+    return PayFast::getOTPScreen($request->validated());
+}
+```
+
 ## Authentication Methods
 
 ### getToken()
@@ -306,6 +331,37 @@ $response = PayFast::payWithUPaisa($paymentData);
 $response = PayFast::payWithUPaisa($paymentData);
 ```
 
+### payWithJazzCash()
+
+Process payment with JazzCash wallet (`bank_code=1`, `account_type_id=4`).
+
+```php
+$response = PayFast::payWithJazzCash($paymentData);
+```
+
+**Parameters**: Same as `payWithEasyPaisa()`
+
+**Returns**: `JsonResponse`
+
+**Example**:
+
+```php
+$paymentData = [
+    'basket_id' => 'ORD-12345',
+    'txnamt' => 1000.00,
+    'customer_mobile_no' => '03001234567',
+    'customer_email_address' => 'customer@example.com',
+];
+
+$response = PayFast::payWithJazzCash($paymentData);
+$result = json_decode($response->getContent(), true);
+
+if ($result['status']) {
+    // $result['data']['payment_method'] === 'jazzcash'
+    // Continue with OTP / walletTransactionInitiate using transaction_id
+}
+```
+
 ### validateWalletTransaction()
 
 Validate wallet transaction (generic method).
@@ -322,7 +378,8 @@ $data = [
     'txnamt' => 1000.00,
     'customer_mobile_no' => '03001234567',
     'customer_email_address' => 'customer@example.com',
-    'bank_code' => 13, // 13 for EasyPaisa, 14 for UPaisa
+    'bank_code' => 1, // 1 JazzCash, 13 EasyPaisa, 14 UPaisa
+    'account_type_id' => 4,
     'order_date' => '2025-01-15',
 ];
 ```
@@ -663,30 +720,27 @@ $ipnData = [
     "ipn_log_id": 123,
     "transaction_id": "TXN123456",
     "order_no": "ORD-12345",
-    "payment_updated": true
+    "payment_updated": true,
+    "idempotency_key": "…"
   },
-  "message": "IPN processed successfully",
   "code": "00"
 }
 ```
 
+Duplicate deliveries return `code: "ALREADY_PROCESSED"` (see [IPN Handling](IPN-Handling)).
+
 **Example**:
 
 ```php
-// In your controller
-public function handleIPN(Request $request)
-{
-    $ipnData = $request->all();
-    $response = PayFast::handleIPN($ipnData);
-    return $response;
-}
+// Usually unnecessary — prefer the built-in route + events
+$response = PayFast::handleIPN($request->all());
 ```
 
-> **Note**: You typically don't need a custom controller. The package registers a built-in IPN endpoint at `POST /api/payfast/ipn` that handles this automatically.
+> **Note**: Built-in endpoint is `POST /payfast/ipn` (`payfast.ipn.handle`), middleware `api` → `payfast.ipn.log` → `payfast.ipn`. Optional prefix via `PAYFAST_ROUTE_PREFIX`.
 
 ## Automatic `checkout_url` Injection
 
-All payment methods (`getOTPScreen`, `initiateTransaction`, `payWithEasyPaisa`, `payWithUPaisa`, `validateWalletTransaction`, `walletTransactionInitiate`) automatically include the `checkout_url` parameter in their outgoing API requests to PayFast.
+All payment methods (`getOTPScreen`, `initiateTransaction`, `payWithEasyPaisa`, `payWithUPaisa`, `payWithJazzCash`, `validateWalletTransaction`, `walletTransactionInitiate`) automatically include the `checkout_url` parameter in their outgoing API requests to PayFast. Wallet validate calls also send the Bearer auth token.
 
 This tells PayFast where to send IPN (Instant Payment Notification) callbacks when a payment status changes.
 
@@ -694,7 +748,7 @@ This tells PayFast where to send IPN (Instant Payment Notification) callbacks wh
 
 ```env
 # Explicit URL (recommended for production)
-PAYFAST_CHECKOUT_URL=https://yourdomain.com/api/payfast/ipn
+PAYFAST_CHECKOUT_URL=https://yourdomain.com/payfast/ipn
 
 # Or leave empty to auto-resolve from the built-in route
 ```

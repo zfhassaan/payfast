@@ -6,6 +6,7 @@ namespace zfhassaan\Payfast\Services;
 
 use Illuminate\Support\Carbon;
 use zfhassaan\Payfast\DTOs\PaymentRequestDTO;
+use zfhassaan\Payfast\DTOs\WalletPaymentRequestDTO;
 use zfhassaan\Payfast\Services\Contracts\HttpClientInterface;
 use zfhassaan\Payfast\Services\Contracts\PaymentServiceInterface;
 
@@ -20,7 +21,6 @@ class PaymentService implements PaymentServiceInterface
     /**
      * Validate customer and get OTP screen.
      *
-     * @param PaymentRequestDTO $dto
      * @return array<string, mixed>
      */
     public function validateCustomer(PaymentRequestDTO $dto): array
@@ -46,8 +46,6 @@ class PaymentService implements PaymentServiceInterface
     /**
      * Initiate a transaction.
      *
-     * @param PaymentRequestDTO $dto
-     * @param string $authToken
      * @return array<string, mixed>
      */
     public function initiateTransaction(PaymentRequestDTO $dto, string $authToken): array
@@ -83,22 +81,25 @@ class PaymentService implements PaymentServiceInterface
     /**
      * Validate wallet transaction.
      *
-     * @param array<string, mixed> $data
-     * @param int $bankCode
-     * @param int $accountTypeId
      * @return array<string, mixed>
      */
-    public function validateWalletTransaction(array $data, int $bankCode, int $accountTypeId): array
-    {
-        $data['account_type_id'] = (string) $accountTypeId;
-        $data['bank_code'] = (string) $bankCode;
-        $data['order_date'] = Carbon::today()->toDateString();
+    public function validateWalletTransaction(
+        WalletPaymentRequestDTO $dto,
+        ?string $authToken = null
+    ): array {
+        $data = $dto->toArray();
+        $data['account_type_id'] = (string) $dto->accountTypeId;
+        $data['bank_code'] = (string) $dto->bankCode;
         $data['checkout_url'] = $this->configService->getCheckoutUrl();
 
         $url = $this->configService->getApiUrl() . 'customer/validate';
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',
         ];
+
+        if ($authToken !== null && $authToken !== '') {
+            $headers['Authorization'] = 'Bearer ' . $authToken;
+        }
 
         $response = $this->httpClient->post($url, $data, $headers);
 
@@ -108,12 +109,11 @@ class PaymentService implements PaymentServiceInterface
     /**
      * Initiate wallet transaction.
      *
-     * @param array<string, mixed> $data
-     * @param string $authToken
      * @return array<string, mixed>
      */
-    public function initiateWalletTransaction(array $data, string $authToken): array
+    public function initiateWalletTransaction(WalletPaymentRequestDTO $dto, string $authToken): array
     {
+        $data = $dto->toArray();
         $data['checkout_url'] = $this->configService->getCheckoutUrl();
 
         $url = $this->configService->getApiUrl() . 'transaction';
@@ -127,5 +127,3 @@ class PaymentService implements PaymentServiceInterface
         return $response ?? [];
     }
 }
-
-

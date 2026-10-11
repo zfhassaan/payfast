@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace zfhassaan\Payfast\Services\Contracts;
 
 use zfhassaan\Payfast\DTOs\PaymentRequestDTO;
+use zfhassaan\Payfast\DTOs\WalletPaymentRequestDTO;
 
 interface PaymentServiceInterface
 {
@@ -28,21 +29,20 @@ interface PaymentServiceInterface
     /**
      * Validate wallet transaction.
      *
-     * @param array<string, mixed> $data
-     * @param int $bankCode
-     * @param int $accountTypeId
+     * @param string|null $authToken Bearer token required by PayFast for wallet validate
      * @return array<string, mixed>
      */
-    public function validateWalletTransaction(array $data, int $bankCode, int $accountTypeId): array;
+    public function validateWalletTransaction(
+        WalletPaymentRequestDTO $dto,
+        ?string $authToken = null
+    ): array;
 
     /**
      * Initiate wallet transaction.
      *
-     * @param array<string, mixed> $data
-     * @param string $authToken
      * @return array<string, mixed>
      */
-    public function initiateWalletTransaction(array $data, string $authToken): array;
+    public function initiateWalletTransaction(WalletPaymentRequestDTO $dto, string $authToken): array;
 }
 
 
